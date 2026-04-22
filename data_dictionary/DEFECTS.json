@@ -1,0 +1,69 @@
+{
+  "metadata": {
+    "type": "table_schema",
+    "table_name": "DEFECTS",
+    "domain": "lỗi, chất lượng, phế phẩm, hỏng hóc, qc"
+  },
+  "content": {
+    "description": "Bảng DEFECTS (Ghi nhận Lỗi) là dữ liệu giao dịch thống kê các sản phẩm lỗi, loại lỗi sinh ra trong quá trình sản xuất theo từng dây chuyền, sản phẩm và ca làm việc. Dùng để tính toán tỉ lệ lỗi, phân tích nguyên nhân giảm chất lượng và theo dõi phế phẩm.",
+    "columns": [
+      {
+        "name": "ID",
+        "type": "INT",
+        "description": "Mã bản ghi trạng thái lỗi (Khóa chính)."
+      },
+      {
+        "name": "LineID",
+        "type": "VARCHAR(50)",
+        "description": "Mã dây chuyền xảy ra lỗi (Foreign Key). Dùng để phân nhóm tìm ra chuyền nào đang bị lỗi nhiều nhất."
+      },
+      {
+        "name": "ProductID",
+        "type": "VARCHAR(50)",
+        "description": "Mã sản phẩm bị lỗi (Foreign Key). Dùng để thống kê số lượng lỗi theo từng mã hàng."
+      },
+      {
+        "name": "ProductivityID",
+        "type": "INT",
+        "description": "Mã bản ghi năng suất tương ứng (Foreign Key). Tham chiếu tới lô hàng hoặc bản ghi năng suất đã tạo ra lỗi này, hỗ trợ tính tỉ lệ lỗi theo từng mẻ sản xuất."
+      },
+      {
+        "name": "DefectTypeCode",
+        "type": "VARCHAR(50)",
+        "description": "Mã loại lỗi gặp phải (Foreign Key). Dùng để phân loại lỗi cụ thể."
+      },
+      {
+        "name": "ShiftID",
+        "type": "INT",
+        "description": "Mã ca làm việc (Foreign Key). Cho biết lỗi được ghi nhận trong ca làm việc nào."
+      },
+      {
+        "name": "DefectCount",
+        "type": "INT",
+        "description": "Số lượng lỗi bị bắt / phát hiện."
+      },
+      {
+        "name": "RecordedAt",
+        "type": "DATETIME",
+        "description": "Thời điểm ghi nhận lỗi. Dùng để thống kê biểu đồ xu hướng lỗi theo giờ hoặc ngày."
+      },
+      {
+        "name": "CreatedAt",
+        "type": "DATETIME",
+        "description": "Thời gian tạo bản ghi trong hệ thống."
+      },
+      {
+        "name": "UpdatedAt",
+        "type": "DATETIME",
+        "description": "Thời gian cập nhật bản ghi cuối cùng."
+      }
+    ],
+    "relationships": [
+      "JOIN với DEFECT_CATEGORIES trên DefectTypeCode = DEFECT_CATEGORIES.DefectTypeCode để biết tên lỗi (DefectName), mức độ nghiêm trọng (Severity) và có sửa được không (IsRepairable).",
+      "JOIN với PRODUCTIVITY trên ProductivityID = PRODUCTIVITY.ID để đánh giá chất lượng của từng lô sản xuất, tính Tỉ lệ lỗi = (DefectCount / Quantity).",
+      "JOIN với PRODUCTION_LINES trên LineID = PRODUCTION_LINES.LineID để lấy tên dây chuyền và bộ phận quản lý.",
+      "JOIN với PRODUCTS trên ProductID = PRODUCTS.ProductID để lấy tên sản phẩm chi tiết.",
+      "JOIN với SHIFTS trên ShiftID = SHIFTS.ShiftID để trích xuất báo cáo lỗi chi tiết theo từng ca."
+    ]
+  }
+}
