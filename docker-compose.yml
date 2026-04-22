@@ -8,7 +8,7 @@ services:
       - "5025:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=ChatBotDB;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;
+      - ConnectionStrings__site_chat=Server=sqlserver,1433;Database=ChatBotDB;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;
       - Qdrant__Host=qdrant
       - Qdrant__Port=6334
     depends_on:
@@ -23,18 +23,30 @@ services:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: chatbot_sqlserver
     ports:
-      - "1433:1433"
+      - "14330:1433"
     environment:
       - ACCEPT_EULA=Y
       - MSSQL_SA_PASSWORD=YourStrong@Passw0rd
     volumes:
       - sqlserver_data:/var/opt/mssql
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -Q 'SELECT 1' -No || exit 1"]
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Passw0rd' -C -Q 'SELECT 1' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
+    networks:
+      - chatbot_network
+
+  init-db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: chatbot_db_init
+    user: root
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    command: >
+      /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P 'YourStrong@Passw0rd' -C -Q "IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = 'ChatBotDB') CREATE DATABASE ChatBotDB"
     networks:
       - chatbot_network
 
@@ -44,7 +56,7 @@ services:
     ports:
       - "6333:6333"
       - "6334:6334"
-    volumes:git
+    volumes:
       - qdrant_data:/qdrant/storage
     networks:
       - chatbot_network

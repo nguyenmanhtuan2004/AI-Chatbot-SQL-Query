@@ -17,7 +17,18 @@ namespace API_ChatBot
             builder.Services.AddSwaggerGen();
 
             builder.Services.AddDbContext<AppDbContext>(options =>
+<<<<<<< HEAD
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+=======
+                options.UseSqlServer(builder.Configuration.GetConnectionString("site_chat"),
+                    sqlServerOptionsAction: sqlOptions =>
+                    {
+                        sqlOptions.EnableRetryOnFailure(
+                            maxRetryCount: 10,
+                            maxRetryDelay: TimeSpan.FromSeconds(30),
+                            errorNumbersToAdd: null);
+                    }));
+>>>>>>> main
 
             builder.Services.AddSingleton(sp =>
             {
