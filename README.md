@@ -43,6 +43,22 @@ dotnet run
 
 > Yêu cầu SQL Server và Qdrant đang chạy ở localhost.
 
+## Kết nối SQL Server bằng SSMS
+
+1. Mở **SQL Server Management Studio (SSMS)** → cửa sổ **Connect to Server** hiện ra
+2. Điền thông tin:
+
+| Trường | Giá trị |
+|--------|---------|
+| Server name | `localhost,1433` |
+| Authentication | `SQL Server Authentication` |
+| Login | `sa` |
+| Password | `YourStrong@Passw0rd` |
+
+3. Nhấn **Connect**
+
+> Docker container SQL Server phải đang chạy (`docker compose up`) thì mới kết nối được.
+
 ## Đổi mật khẩu SA (mặc định)
 
 Thay `YourStrong@Passw0rd` trong `docker-compose.yml` và `appsettings.json`.
