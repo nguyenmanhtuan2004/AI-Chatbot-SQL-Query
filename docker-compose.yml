@@ -38,6 +38,18 @@ services:
     networks:
       - chatbot_network
 
+  init-db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: chatbot_db_init
+    user: root
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    command: >
+      /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P 'YourStrong@Passw0rd' -C -Q "IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = 'ChatBotDB') CREATE DATABASE ChatBotDB"
+    networks:
+      - chatbot_network
+
   qdrant:
     image: qdrant/qdrant:latest
     container_name: chatbot_qdrant
