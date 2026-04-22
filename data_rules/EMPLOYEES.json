@@ -1,0 +1,41 @@
+{
+  "metadata": {
+    "type": "table_schema",
+    "table_name": "EMPLOYEES",
+    "domain": "nhân viên, nhân sự, công nhân, người lao động, chức vụ"
+  },
+  "content": {
+    "description": "Bảng EMPLOYEES (Nhân sự). Là bảng dữ liệu danh mục (Master Data) lưu trữ danh sách tên công nhân viên và vị trí, chức vụ của họ trong nhà máy. Dùng để tra cứu thông tin người lao động và phục vụ các báo cáo cần hiển thị tên người trực tiếp sản xuất.",
+    "columns": [
+      {
+        "name": "EmployeeID",
+        "type": "INT",
+        "description": "Mã định danh nhân sự (Khóa chính, tự tăng). Thường được dùng làm tham chiếu cấp phát thẻ nhân viên."
+      },
+      {
+        "name": "EmployeeName",
+        "type": "NVARCHAR(100)",
+        "description": "Họ và tên đầy đủ của nhân sự / người lao động."
+      },
+      {
+        "name": "Position",
+        "type": "NVARCHAR(100)",
+        "description": "Vị trí làm việc hoặc chức vụ (Ví dụ: Công nhân, Tổ trưởng, Quản lý đốc công)."
+      },
+      {
+        "name": "CreatedAt",
+        "type": "DATETIME",
+        "description": "Thời gian khai báo nhân viên vào hệ thống."
+      },
+      {
+        "name": "UpdatedAt",
+        "type": "DATETIME",
+        "description": "Thời gian cập nhật thông tin nhân viên gần nhất."
+      }
+    ],
+    "relationships": [
+      "Được bảng WORK_ASSIGNMENTS tham chiếu như Foreign Key (EmployeeID) để liên kết lịch phân công cụ thể tới từng nhân sự.",
+      "Là bảng gốc để tra cứu thông tin (JOIN) khi người dùng hỏi các câu hỏi liên quan tới tên hoặc chức vụ của người làm cụ thể."
+    ]
+  }
+}

@@ -1,0 +1,31 @@
+# Agent related files
+.agent/
+
+# .NET / Visual Studio
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# IDEs
+.vscode/
+.idea/
+
+# Environment and Secrets
+.env
+.env.*
+appsettings.Development.json
+
+# Docker
+.dockerignore
+# (Keep Dockerfile and docker-compose.yml)
+
+# OS Files
+Thumbs.db
+Desktop.ini
+.DS_Store
