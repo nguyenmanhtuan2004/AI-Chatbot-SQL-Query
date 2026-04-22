@@ -1,0 +1,58 @@
+{
+  "metadata": {
+    "type": "table_schema",
+    "table_name": "PRODUCTIVITY",
+    "domain": "năng suất, sản lượng, thực tế, tiến độ"
+  },
+  "content": {
+    "description": "Bảng PRODUCTIVITY ghi nhận Năng suất (Dữ liệu giao dịch trọng tâm). Lưu vết số lượng sản phẩm làm ra thực tế (sản lượng) theo thời gian thực, từng dây chuyền, sản phẩm và ca làm việc. Dùng để tính toán doanh thu, năng suất thực tế và tiến độ hoàn thành.",
+    "columns": [
+      {
+        "name": "ID",
+        "type": "INT",
+        "description": "Mã bản ghi năng suất (Khóa chính)."
+      },
+      {
+        "name": "LineID",
+        "type": "VARCHAR(50)",
+        "description": "Mã dây chuyền thực hiện sản xuất (Foreign Key). Dùng để phân nhóm tính tổng sản lượng theo dây chuyền."
+      },
+      {
+        "name": "ProductID",
+        "type": "VARCHAR(50)",
+        "description": "Mã sản phẩm được làm ra (Foreign Key). Dùng để phân nhóm tính toán theo loại mã hàng."
+      },
+      {
+        "name": "PlanID",
+        "type": "INT",
+        "description": "Mã kế hoạch sản xuất tương ứng (Foreign Key). Tham chiếu tới kế hoạch sản xuất để so sánh mục tiêu vs thực tế."
+      },
+      {
+        "name": "Quantity",
+        "type": "INT",
+        "description": "Số lượng thành phẩm / sản phẩm làm ra thực tế trong lần ghi nhận này."
+      },
+      {
+        "name": "StartTime",
+        "type": "DATETIME",
+        "description": "Thời gian bắt đầu log dữ liệu sản lượng."
+      },
+      {
+        "name": "EndTime",
+        "type": "DATETIME",
+        "description": "Thời gian kết thúc log dữ liệu. Có thể dùng để tính toán năng suất theo giờ."
+      },
+      {
+        "name": "ShiftID",
+        "type": "INT",
+        "description": "Mã ca làm việc (Foreign Key). Cho biết sản lượng này được làm ra trong ca làm việc nào."
+      }
+    ],
+    "relationships": [
+      "JOIN với PRODUCTION_LINES trên LineID = PRODUCTION_LINES.LineID để tổng hợp sản lượng theo từng chuyền may và thông tin bộ phận.",
+      "JOIN với PRODUCTS trên ProductID = PRODUCTS.ProductID để lấy đơn giá (UnitPrice) phục vụ tính doanh thu bằng công thức (Quantity * UnitPrice).",
+      "JOIN với PRODUCTION_PLANS trên PlanID = PRODUCTION_PLANS.PlanID để tính Tỉ lệ hoàn thành kế hoạch bằng công thức (Quantity / TargetQuantity).",
+      "JOIN với SHIFTS trên ShiftID = SHIFTS.ShiftID để trích xuất và lọc báo cáo năng suất theo từng ca làm việc."
+    ]
+  }
+}

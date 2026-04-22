@@ -105,54 +105,116 @@ Pattern mẫu
 ## Bước 3: Lựa chọn Mô hình Embedding
 
 Chọn một mô hình embedding để biến các chunks text ở Bước 2 thành Vector (dãy số):
-- **Gợi ý 1:** `text-embedding-3-small` của OpenAI (rẻ, tiếng Việt tốt, vector size 1536).
+- **Gợi ý 1:** `text-multilingual-embedding-002` của Google Cloud Vertex AI (Tận dụng 300$ free credits, hỗ trợ tiếng Việt cực tốt, vector size 768).
 - **Gợi ý 2:** `multilingual-e5-large` (mô hình mã nguồn mở nếu muốn chạy local, hỗ trợ tiếng Việt tốt).
 
-## Bước 4: Khởi tạo Qdrant Collection
+## Bước 4: Cài đặt thư viện và Khởi tạo Qdrant Collection
 
-Sử dụng thư viện `qdrant-client` (Python).
+Cài đặt các thư viện cần thiết bằng Terminal:
+```bash
+pip install qdrant-client google-cloud-aiplatform
+```
+
+Sử dụng thư viện `qdrant-client` để khởi tạo collection (sử dụng model của Vertex AI có kích thước vector mặc định là 768):
 
 ```python
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams
 
-client = QdrantClient(url="http://localhost:6333") # Hoặc Qdrant Cloud URL
+# Kết nối tới Qdrant đang chạy trong Docker
+client = QdrantClient(url="http://localhost:6333") 
 
-# Tạo collection
+# Bỏ comment dòng dưới để xóa DB cũ làm lại từ đầu (nếu test nhiều lần)
+# client.delete_collection(collection_name="factory_data_dictionary")
+
+# Tạo collection (Lưu ý: vector size của Vertex AI là 768 thay vì 1536)
 client.recreate_collection(
     collection_name="factory_data_dictionary",
-    vectors_config=VectorParams(size=1536, distance=Distance.COSINE),
+    vectors_config=VectorParams(size=768, distance=Distance.COSINE),
 )
 ```
 
-## Bước 5: Embedding và Lưu vào Qdrant (Ingestion)
+## Bước 5: Viết Script Python đọc file JSON và đẩy vào Qdrant (Ingestion) bằng Vertex AI
 
-Quét qua danh sách các chunks (Schema + Business Rules), nhúng nó thành vector và lưu kèm **Payload (Metadata)** để sau này filter dễ dàng.
+Dưới đây là Script thực tế quét toàn bộ thư mục `data_dictionary/`, sử dụng Vertex AI tạo Vector rồi đưa vào Qdrant kèm Metadata:
 
 ```python
-# Giả mã (Pseudocode) với Langchain hoặc OpenAI API
-chunks = [
-    {
-        "text": "Bảng PRODUCTIVITY lưu sản lượng thực tế...", 
-        "metadata": {"type": "table_schema", "table": "PRODUCTIVITY"}
-    },
-    {
-        "text": "Công thức Doanh thu = PRODUCTIVITY.Quantity * PRODUCTS.UnitPrice", 
-        "metadata": {"type": "business_rule", "domain": "finance"}
-    }
-]
+import os
+import json
+from qdrant_client import QdrantClient
+from qdrant_client.models import PointStruct
+import vertexai
+from vertexai.language_models import TextEmbeddingModel
 
+# 1. Khởi tạo Clients
+qdrant = QdrantClient(url="http://localhost:6333")
+
+# Đã bỏ qua việc dùng file JSON Key.
+# Hệ thống sẽ tự động nhận diện xác thực thông qua lệnh: gcloud auth application-default login
+
+# Khởi tạo Vertex AI
+vertexai.init(project="<YOUR_PROJECT_ID>", location="us-central1") 
+# Model hỗ trợ tiếng Việt tốt nhất hiện nay của Google
+embedding_model = TextEmbeddingModel.from_pretrained("text-multilingual-embedding-002")
+
+def get_embedding(text):
+    # Vertex AI SDK trả về một danh sách, lấy phần tử đầu tiên
+    embeddings = embedding_model.get_embeddings([text])
+    return embeddings[0].values
+
+# 2. Quét thư mục
+folder_path = "data_dictionary"
 points = []
-for i, chunk in enumerate(chunks):
-    vector = get_embedding(chunk["text"]) # Hàm gọi API OpenAI/Local
-    points.append(
-        PointStruct(id=i, vector=vector, payload={"text": chunk["text"], **chunk["metadata"]})
-    )
+point_id = 1 # Qdrant yêu cầu ID là số nguyên (Integer) hoặc chuỗi UUID
 
-client.upsert(
+for filename in os.listdir(folder_path):
+    if not filename.endswith(".json"): continue
+    
+    file_path = os.path.join(folder_path, filename)
+    with open(file_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+        
+        # Xử lý: File Rule JSON là Array dạng [{}, {}], Schema Table là Object {}
+        items = data if isinstance(data, list) else [data]
+        
+        for item in items:
+            metadata = item.get("metadata", {})
+            content = item.get("content", {})
+            
+            # 3. Nén JSON thành chuỗi văn bản (Semantic Text) để Embedding hiệu quả nhất
+            embed_text = ""
+            if metadata.get("type") == "table_schema":
+                cols = ", ".join([c["name"] for c in content.get("columns", [])])
+                rels = " ".join(content.get("relationships", []))
+                embed_text = f"Bảng {metadata.get('table_name')} (Lĩnh vực: {metadata.get('domain')}): {content.get('description')} " \
+                             f"Bao gồm các cột: {cols}. " \
+                             f"Liên kết: {rels}"
+            elif metadata.get("type") == "business_rule":
+                embed_text = f"Quy tắc tính năng: {metadata.get('metric_name')}. " \
+                             f"Từ khóa hỏi đáp: {', '.join(metadata.get('trigger_keywords', []))}. " \
+                             f"Ý nghĩa: {content.get('description')} " \
+                             f"Logic SQL: {content.get('sql_logic')}. Điều kiện: {content.get('conditions')}"
+
+            # Nhúng dữ liệu thành dãy số Vector
+            vector = get_embedding(embed_text)
+            
+            # 4. Đóng gói (Lưu PointStruct)
+            points.append(PointStruct(
+                id=point_id, 
+                vector=vector, 
+                payload={
+                    "raw_json": item, # Lưu nguyên JSON trả về cho prompt Prompt sau này
+                    **metadata        # Cài thêm các bộ lọc
+                }
+            ))
+            point_id += 1
+
+# 5. Push toàn bộ vào Vector DB
+qdrant.upsert(
     collection_name="factory_data_dictionary",
     points=points
 )
+print(f"Thành công! Đã đẩy {len(points)} vector vào Qdrant.")
 ```
 
 ## Bước 6: Tích hợp RAG để Chatbot sinh SQL
