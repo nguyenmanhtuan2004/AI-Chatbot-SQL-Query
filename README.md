@@ -49,7 +49,7 @@ dotnet run
 
 1. Mở SSMS → cửa sổ **Connect to Server** hiện ra
 2. Điền:
-   - **Server name:** `localhost,1433`
+   - **Server name:** `localhost,14330`
    - **Authentication:** `SQL Server Authentication`
    - **Login:** `sa`
    - **Password:** `YourStrong@Passw0rd`
