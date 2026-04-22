@@ -1,48 +1,31 @@
-# Build output
-**/bin/
-**/obj/
+# Agent related files
+.agent/
 
-# Visual Studio
-**/.vs/
+# .NET / Visual Studio
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+.vs/
 *.user
 *.suo
 *.userosscache
 *.sln.docstates
 
-# Rider
-**/.idea/
+# IDEs
+.vscode/
+.idea/
 
-# VS Code
-**/.vscode/
-
-# NuGet
-*.nupkg
-**/packages/
-!**/packages/build/
-project.lock.json
-project.fragment.lock.json
-artifacts/
-
-# .NET
-*.dll
-*.exe
-*.pdb
-*.cache
-
-# Environment & secrets
+# Environment and Secrets
 .env
 .env.*
 appsettings.Development.json
-**/secrets.json
 
 # Docker
-docker-compose.override.yml
+.dockerignore
+# (Keep Dockerfile and docker-compose.yml)
 
-# OS
+# OS Files
 Thumbs.db
+Desktop.ini
 .DS_Store
-desktop.ini
-
-# Logs
-*.log
-logs/
