@@ -1,0 +1,130 @@
+{
+  "database": "Factory_AI_Chatbot_DB",
+  "description": "Cơ sở dữ liệu quản lý năng suất, lỗi, kế hoạch sản xuất và nhân sự của nhà máy may.",
+  "tables": [
+    {
+      "table_name": "PRODUCTION_LINES",
+      "description": "Bảng Chuyền may. Định nghĩa danh sách các dây chuyền sản xuất, người quản lý và bộ phận.",
+      "columns": [
+        {"name": "LineID", "type": "VARCHAR(50)", "key": "PK", "description": "Mã dây chuyền may (Khóa chính)."},
+        {"name": "ManagerName", "type": "NVARCHAR(100)", "key": "", "description": "Tên người quản lý chuyền."},
+        {"name": "Department", "type": "NVARCHAR(100)", "key": "", "description": "Bộ phận quản lý chuyền."},
+        {"name": "CreatedAt", "type": "DATETIME", "key": "", "description": "Thời gian tạo bản ghi."}
+      ],
+      "relationships": []
+    },
+    {
+      "table_name": "PRODUCTS",
+      "description": "Bảng Sản phẩm (Mã hàng). Chứa thông tin về sản phẩm, đặc biệt là đơn giá dùng để tính doanh thu.",
+      "columns": [
+        {"name": "ProductID", "type": "VARCHAR(50)", "key": "PK", "description": "Mã sản phẩm hoặc mã hàng (Khóa chính)."},
+        {"name": "ProductName", "type": "NVARCHAR(200)", "key": "", "description": "Tên sản phẩm."},
+        {"name": "UnitPrice", "type": "DECIMAL(18, 2)", "key": "", "description": "Đơn giá của 1 sản phẩm. Dùng để nhân với số lượng (Quantity) để tính doanh thu."},
+        {"name": "Description", "type": "NVARCHAR(500)", "key": "", "description": "Mô tả thêm về sản phẩm."}
+      ],
+      "relationships": []
+    },
+    {
+      "table_name": "SHIFTS",
+      "description": "Bảng Ca làm việc. Định nghĩa danh sách các ca làm việc trong ngày (ví dụ: Ca 1, Ca 2, Hành chính) và khung giờ tương ứng.",
+      "columns": [
+        {"name": "ShiftID", "type": "INT", "key": "PK", "description": "Mã định danh ca làm việc (Khóa chính)."},
+        {"name": "ShiftName", "type": "NVARCHAR(50)", "key": "", "description": "Tên ca làm việc (VD: Ca Sáng, Ca Chiều)."},
+        {"name": "StartTime", "type": "TIME", "key": "", "description": "Giờ bắt đầu ca."},
+        {"name": "EndTime", "type": "TIME", "key": "", "description": "Giờ kết thúc ca."}
+      ],
+      "relationships": []
+    },
+    {
+      "table_name": "EMPLOYEES",
+      "description": "Bảng Nhân sự. Lưu trữ danh sách công nhân viên và vị trí/chức vụ của họ.",
+      "columns": [
+        {"name": "EmployeeID", "type": "INT", "key": "PK", "description": "Mã nhân sự (Khóa chính, tự tăng)."},
+        {"name": "EmployeeName", "type": "NVARCHAR(100)", "key": "", "description": "Tên đầy đủ của nhân sự."},
+        {"name": "Position", "type": "NVARCHAR(100)", "key": "", "description": "Vị trí hoặc chức vụ (VD: Công nhân, Tổ trưởng)."}
+      ],
+      "relationships": []
+    },
+    {
+      "table_name": "DEFECT_CATEGORIES",
+      "description": "Bảng Danh mục Lỗi. Định nghĩa các loại lỗi sản phẩm có thể xảy ra, mức độ nghiêm trọng và khả năng sửa chữa.",
+      "columns": [
+        {"name": "DefectTypeCode", "type": "VARCHAR(50)", "key": "PK", "description": "Mã loại lỗi (Khóa chính)."},
+        {"name": "DefectName", "type": "NVARCHAR(200)", "key": "", "description": "Tên của lỗi (VD: Lỗi sút chỉ, Lỗi form áo)."},
+        {"name": "Severity", "type": "NVARCHAR(50)", "key": "", "description": "Mức độ nghiêm trọng của lỗi (VD: Cao, Trung bình, Thấp)."},
+        {"name": "IsRepairable", "type": "BIT", "key": "", "description": "Lỗi có sửa được hay không (1: Sửa được, 0: Hàng rớt / phế phẩm)."}
+      ],
+      "relationships": []
+    },
+    {
+      "table_name": "PRODUCTION_PLANS",
+      "description": "Bảng Kế hoạch sản xuất. Giao chỉ tiêu sản lượng (TargetQuantity) cho mỗi chuyền (LineID) theo từng mã hàng (ProductID) với deadline cụ thể.",
+      "columns": [
+        {"name": "PlanID", "type": "INT", "key": "PK", "description": "Mã kế hoạch (Khóa chính, tự tăng)."},
+        {"name": "ProductID", "type": "VARCHAR(50)", "key": "FK", "description": "Mã sản phẩm được giao sản xuất. Tham chiếu tới PRODUCTS."},
+        {"name": "LineID", "type": "VARCHAR(50)", "key": "FK", "description": "Mã chuyền được giao mục tiêu. Tham chiếu tới PRODUCTION_LINES."},
+        {"name": "TargetQuantity", "type": "INT", "key": "", "description": "Sản lượng mục tiêu cần đạt được (Chỉ tiêu)."},
+        {"name": "Deadline", "type": "DATE", "key": "", "description": "Ngày hết hạn hoặc ngày phải hoàn thành kế hoạch."}
+      ],
+      "relationships": [
+        "JOIN với PRODUCTS.ProductID để lấy tên và giá sản phẩm cần sản xuất.",
+        "JOIN với PRODUCTION_LINES.LineID để biết kế hoạch thuộc về dây chuyền nào."
+      ]
+    },
+    {
+      "table_name": "WORK_ASSIGNMENTS",
+      "description": "Bảng Phân công công việc. Quản lý nhân viên nào làm việc ở dây chuyền nào, vào ca nào, trong ngày nào.",
+      "columns": [
+        {"name": "AssignmentID", "type": "INT", "key": "PK", "description": "Mã phân công (Khóa chính)."},
+        {"name": "EmployeeID", "type": "INT", "key": "FK", "description": "Mã nhân sự. Tham chiếu tới EMPLOYEES."},
+        {"name": "LineID", "type": "VARCHAR(50)", "key": "FK", "description": "Mã dây chuyền được phân công. Tham chiếu tới PRODUCTION_LINES."},
+        {"name": "ShiftID", "type": "INT", "key": "FK", "description": "Mã ca làm việc. Tham chiếu tới SHIFTS."},
+        {"name": "WorkDate", "type": "DATE", "key": "", "description": "Ngày phân công thực hiện công việc."}
+      ],
+      "relationships": [
+        "JOIN với EMPLOYEES.EmployeeID để lấy tên nhân sự.",
+        "JOIN với PRODUCTION_LINES.LineID để lấy thông tin nơi làm việc.",
+        "JOIN với SHIFTS.ShiftID để chi tiết ca làm việc."
+      ]
+    },
+    {
+      "table_name": "PRODUCTIVITY",
+      "description": "Bảng Ghi nhận Năng suất (Dữ liệu giao dịch trọng tâm). Lưu vết số lượng sản phẩm làm ra thực tế theo thời gian thực.",
+      "columns": [
+        {"name": "ID", "type": "INT", "key": "PK", "description": "Mã bản ghi năng suất."},
+        {"name": "LineID", "type": "VARCHAR(50)", "key": "FK", "description": "Dây chuyền thực hiện."},
+        {"name": "ProductID", "type": "VARCHAR(50)", "key": "FK", "description": "Sản phẩm được làm ra."},
+        {"name": "PlanID", "type": "INT", "key": "FK", "description": "Tham chiếu tới kế hoạch sản xuất để so sánh mục tiêu vs thực tế."},
+        {"name": "Quantity", "type": "INT", "key": "", "description": "Số lượng thành phẩm làm ra trong lần ghi nhận này."},
+        {"name": "StartTime", "type": "DATETIME", "key": "", "description": "Thời gian bắt đầu log dữ liệu."},
+        {"name": "EndTime", "type": "DATETIME", "key": "", "description": "Thời gian kết thúc log dữ liệu (có thể dùng để tính toán năng suất theo giờ)."},
+        {"name": "ShiftID", "type": "INT", "key": "FK", "description": "Làm ra trong ca nào."}
+      ],
+      "relationships": [
+        "JOIN với PRODUCTION_LINES.LineID để tổng hợp sản lượng theo chuyền.",
+        "JOIN với PRODUCTS.ProductID để lấy UnitPrice tính doanh thu (Quantity * UnitPrice).",
+        "JOIN với PRODUCTION_PLANS.PlanID để tính Tỉ lệ hoàn thành kế hoạch (Quantity / TargetQuantity).",
+        "JOIN với SHIFTS.ShiftID để trích xuất báo cáo theo ca."
+      ]
+    },
+    {
+      "table_name": "DEFECTS",
+      "description": "Bảng Ghi nhận Lỗi (Dữ liệu giao dịch). Thống kê các sản phẩm lỗi, loại lỗi sinh ra trong quá trình sản xuất.",
+      "columns": [
+        {"name": "ID", "type": "INT", "key": "PK", "description": "Mã bản ghi trạng thái lỗi."},
+        {"name": "LineID", "type": "VARCHAR(50)", "key": "FK", "description": "Lỗi xảy ra ở chuyền nào."},
+        {"name": "ProductID", "type": "VARCHAR(50)", "key": "FK", "description": "Lỗi thuộc sản phẩm nào."},
+        {"name": "ProductivityID", "type": "INT", "key": "FK", "description": "Tham chiếu tới lô hàng/bản ghi năng suất đã tạo ra lỗi này (để tính tỉ lệ lỗi theo mẻ)."},
+        {"name": "DefectTypeCode", "type": "VARCHAR(50)", "key": "FK", "description": "Loại lỗi gặp phải. Tham chiếu tới DEFECT_CATEGORIES."},
+        {"name": "ShiftID", "type": "INT", "key": "FK", "description": "Lỗi được ghi nhận trong ca làm việc nào."},
+        {"name": "DefectCount", "type": "INT", "key": "", "description": "Số lượng lỗi bị bắt."},
+        {"name": "RecordedAt", "type": "DATETIME", "key": "", "description": "Thời điểm ghi nhận lỗi (để thống kê lỗi theo giờ)." }
+      ],
+      "relationships": [
+        "JOIN với DEFECT_CATEGORIES.DefectTypeCode để biết tên lỗi, mức độ và có sửa được không (IsRepairable).",
+        "JOIN với PRODUCTIVITY.ID để đánh giá chất lượng của từng lô/mẻ sản xuất.",
+        "JOIN với PRODUCTION_LINES, PRODUCTS, SHIFTS thông qua FK tương ứng để lên báo cáo đa chiều tương tự như năng suất."
+      ]
+    }
+  ]
+}
