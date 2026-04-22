@@ -1,2 +1,48 @@
-# Agent related files
-.agent/
+# Build output
+**/bin/
+**/obj/
+
+# Visual Studio
+**/.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider
+**/.idea/
+
+# VS Code
+**/.vscode/
+
+# NuGet
+*.nupkg
+**/packages/
+!**/packages/build/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# .NET
+*.dll
+*.exe
+*.pdb
+*.cache
+
+# Environment & secrets
+.env
+.env.*
+appsettings.Development.json
+**/secrets.json
+
+# Docker
+docker-compose.override.yml
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Logs
+*.log
+logs/

@@ -39,7 +39,7 @@ namespace API_ChatBot
 
             if (app.Environment.IsDevelopment())
             {
-                var url = "http://localhost:5025/swagger/index.html";
+                var url = "http://localhost:5026/swagger/index.html";
                 Task.Run(() =>
                 {
                     Thread.Sleep(1500);
