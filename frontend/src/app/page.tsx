@@ -2,17 +2,37 @@
 
 import * as React from "react";
 import { ChatService, type Message } from "@/lib/chat-service";
+import { useChatHistory } from "@/lib/use-chat-history";
 import { Sidebar } from "@/components/chat/Sidebar";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
 
 export default function Home() {
+  const { 
+    sessions, 
+    currentSession, 
+    currentSessionId, 
+    createNewChat, 
+    saveChat, 
+    deleteSession, 
+    selectSession 
+  } = useChatHistory();
+
   const [inputValue, setInputValue] = React.useState("");
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  // Sync messages when current session changes
+  React.useEffect(() => {
+    if (currentSession) {
+      setMessages(currentSession.messages);
+    } else {
+      setMessages([]);
+    }
+  }, [currentSessionId, currentSession]);
 
   React.useEffect(() => {
     if (scrollRef.current) {
@@ -25,27 +45,40 @@ export default function Home() {
 
     const userMessage = inputValue.trim();
     setInputValue("");
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    
+    const newMessages: Message[] = [...messages, { role: "user", content: userMessage }];
+    setMessages(newMessages);
     setIsLoading(true);
 
     try {
-      setMessages((prev) => [...prev, { role: "model", content: "" }]);
+      const assistantIdx = newMessages.length;
+      const updatedMessagesWithPlaceholder = [...newMessages, { role: "model", content: "" } as Message];
+      setMessages(updatedMessagesWithPlaceholder);
+      
       let assistantMessage = "";
 
       for await (const chunk of ChatService.sendMessage(userMessage, messages)) {
         assistantMessage += chunk;
         setMessages((prev) => {
-          const newMessages = [...prev];
-          const lastMsg = newMessages[newMessages.length - 1];
+          const newMsgs = [...prev];
+          const lastMsg = newMsgs[newMsgs.length - 1];
           if (lastMsg && lastMsg.role === "model") {
             lastMsg.content = assistantMessage;
           }
-          return [...newMessages];
+          return [...newMsgs];
         });
       }
+      
+      // Save after completion
+      const finalMessages: Message[] = [...newMessages, { role: "model", content: assistantMessage }];
+      saveChat(finalMessages);
+      
     } catch (error) {
       console.error("Chat error:", error);
-      setMessages((prev) => [...prev, { role: "model", content: "Xin lỗi, đã có lỗi xảy ra trong quá trình kết nối." }]);
+      const errorMsg: Message = { role: "model", content: "Xin lỗi, đã có lỗi xảy ra trong quá trình kết nối." };
+      const finalMessagesWithError = [...newMessages, errorMsg];
+      setMessages(finalMessagesWithError);
+      saveChat(finalMessagesWithError);
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +90,15 @@ export default function Home() {
       <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/5 rounded-full blur-[140px] pointer-events-none animate-pulse-slow" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-accent/5 rounded-full blur-[140px] pointer-events-none animate-pulse-slow [animation-delay:4s]" />
 
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <Sidebar 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)}
+        sessions={sessions}
+        currentSessionId={currentSessionId}
+        onSelectSession={selectSession}
+        onDeleteSession={deleteSession}
+        onNewChat={createNewChat}
+      />
       
       <ChatHeader 
         onOpenSidebar={() => setIsSidebarOpen(true)} 
