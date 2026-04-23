@@ -1,6 +1,7 @@
 import * as React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Copy, Check, PencilSimple } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { type Message } from "@/lib/chat-service";
 
@@ -8,10 +9,19 @@ interface ChatMessageProps {
   message: Message;
   isLoading?: boolean;
   isLast?: boolean;
+  onEdit?: (content: string) => void;
 }
 
-export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLoading, isLast }) => {
+export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLoading, isLast, onEdit }) => {
   const isUser = message.role === "user";
+  const [hasCopied, setHasCopied] = React.useState(false);
+
+  const onCopy = React.useCallback(() => {
+    if (!message.content) return;
+    navigator.clipboard.writeText(message.content);
+    setHasCopied(true);
+    setTimeout(() => setHasCopied(false), 2000);
+  }, [message.content]);
 
   return (
     <div className={cn(
@@ -25,27 +35,55 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLoading, is
           : "glass-panel border border-primary/10 text-foreground rounded-tl-none"
       )}>
         {isUser ? (
-          <div className="whitespace-pre-wrap font-semibold text-foreground/90">{message.content}</div>
+          <div className="flex flex-col">
+            <div className="whitespace-pre-wrap font-semibold text-foreground/90">{message.content}</div>
+            <div className="flex justify-end gap-3 mt-3 -mb-2">
+              {onEdit && (
+                <button 
+                  onClick={() => onEdit(message.content)} 
+                  className="text-foreground/30 hover:text-primary transition-colors flex items-center gap-1.5 text-[11px] font-medium"
+                >
+                  <PencilSimple size={14} /> Sửa
+                </button>
+              )}
+              <button 
+                onClick={onCopy} 
+                className="text-foreground/30 hover:text-primary transition-colors flex items-center gap-1.5 text-[11px] font-medium"
+              >
+                 {hasCopied ? <Check size={14} weight="bold" className="text-green-500" /> : <Copy size={14} />} 
+                 {hasCopied ? "Đã copy" : "Copy"}
+              </button>
+            </div>
+          </div>
         ) : (
-          <div className="markdown-content prose-headings:font-heading prose-headings:font-bold">
-            {message.content ? (
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {message.content}
-              </ReactMarkdown>
-            ) : isLoading && isLast && (
-              <div className="flex gap-2 py-2">
-                <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" />
+          <div className="flex flex-col">
+            <div className="markdown-content prose-headings:font-heading prose-headings:font-bold">
+              {message.content ? (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {message.content}
+                </ReactMarkdown>
+              ) : isLoading && isLast && (
+                <div className="flex gap-2 py-2">
+                  <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" />
+                </div>
+              )}
+            </div>
+            
+            {message.content && (
+              <div className="mt-5 pt-4 border-t border-primary/10 flex items-center gap-3 animate-in fade-in duration-500">
+                <div className="px-2 py-0.5 rounded bg-primary/10 text-[10px] font-bold text-primary uppercase tracking-tighter">AI INSIGHT</div>
+                <div className="text-[10px] text-muted-foreground/40 font-medium flex-1">Chat can make mistakes. Check important info.</div>
+                <button 
+                  onClick={onCopy} 
+                  className="text-muted-foreground/40 hover:text-primary transition-colors flex items-center gap-1.5 text-[11px] font-medium"
+                >
+                  {hasCopied ? <Check size={14} weight="bold" className="text-green-500" /> : <Copy size={14} />} 
+                  {hasCopied ? "Đã copy" : "Copy"}
+                </button>
               </div>
             )}
-          </div>
-        )}
-        
-        {!isUser && message.content && (
-          <div className="mt-4 pt-4 border-t border-primary/10 flex items-center gap-3 animate-in fade-in duration-500">
-            <div className="px-2 py-0.5 rounded bg-primary/10 text-[10px] font-bold text-primary uppercase tracking-tighter">AI INSIGHT</div>
-            <div className="text-[10px] text-muted-foreground/40 font-medium">Chat can make mistakes. Check important info.</div>
           </div>
         )}
       </div>

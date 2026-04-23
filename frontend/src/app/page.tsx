@@ -84,6 +84,19 @@ export default function Home() {
     }
   };
 
+  const handleEdit = (content: string) => {
+    setInputValue(content);
+    // Sử dụng setTimeout để đảm bảo React cập nhật state trước khi focus
+    setTimeout(() => {
+      const inputEl = document.getElementById("chat-input") as HTMLTextAreaElement;
+      if (inputEl) {
+        inputEl.focus();
+        // Đặt con trỏ ở cuối đoạn text
+        inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length);
+      }
+    }, 0);
+  };
+
   return (
     <main className="relative h-screen flex flex-col items-center p-0 overflow-hidden mesh-bg font-sans selection:bg-primary/30">
       {/* Background Decor */}
@@ -109,10 +122,10 @@ export default function Home() {
         {/* Chat Messages Area */}
         <div 
           ref={scrollRef}
-          className="flex-1 overflow-y-auto space-y-8 px-4 py-8 scrollbar-hide pb-40"
+          className="flex-1 overflow-y-auto space-y-8 px-4 py-8 scrollbar-hide pb-4"
           style={{
-            maskImage: 'linear-gradient(to bottom, transparent, black 60px, black calc(100% - 120px), transparent)',
-            WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 60px, black calc(100% - 120px), transparent)'
+            maskImage: 'linear-gradient(to bottom, transparent, black 60px, black calc(100% - 40px), transparent)',
+            WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 60px, black calc(100% - 40px), transparent)'
           }}
         >
           {messages.length === 0 ? (
@@ -135,7 +148,10 @@ export default function Home() {
                 ].map((suggestion, i) => (
                   <button 
                     key={i}
-                    onClick={() => setInputValue(suggestion.value)}
+                    onClick={() => {
+                      setInputValue(suggestion.value);
+                      setTimeout(() => document.getElementById("chat-input")?.focus(), 0);
+                    }}
                     className="px-4 py-2.5 rounded-xl glass-panel border border-primary/10 hover:border-primary/30 hover:bg-primary/5 text-[13px] font-semibold text-muted-foreground hover:text-primary transition-all duration-300 shadow-sm hover:shadow-md"
                   >
                     {suggestion.title}
@@ -150,6 +166,7 @@ export default function Home() {
                 message={msg} 
                 isLoading={isLoading} 
                 isLast={index === messages.length - 1} 
+                onEdit={handleEdit}
               />
             ))
           )}
