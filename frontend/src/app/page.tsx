@@ -8,10 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type Message = {
-  role: "user" | "model";
-  content: string;
-};
+import { ChatService, type Message } from "@/lib/chat-service";
 
 export default function Home() {
   const [inputValue, setInputValue] = React.useState("");
@@ -34,74 +31,24 @@ export default function Home() {
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
 
-    const chatHistory = messages
-      .filter(msg => msg.content.trim() !== "")
-      .map(msg => ({
-        role: msg.role,
-        parts: [{ text: msg.content }]
-      }));
-
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            ...chatHistory,
-            { role: "user", parts: [{ text: userMessage }] }
-          ]
-        }),
-      });
-
-      if (!response.ok) throw new Error("Failed to fetch");
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let assistantMessage = "";
-      let buffer = "";
-
       setMessages((prev) => [...prev, { role: "model", content: "" }]);
+      let assistantMessage = "";
 
-      while (true) {
-        const { done, value } = await reader?.read() || { done: true, value: undefined };
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        
-        let startIdx = buffer.indexOf('{');
-        while (startIdx !== -1) {
-          let stack = 0;
-          let endIdx = -1;
-          for (let i = startIdx; i < buffer.length; i++) {
-            if (buffer[i] === '{') stack++;
-            else if (buffer[i] === '}') {
-              stack--;
-              if (stack === 0) {
-                endIdx = i;
-                break;
-              }
-            }
+      for await (const chunk of ChatService.sendMessage(userMessage, messages)) {
+        assistantMessage += chunk;
+        setMessages((prev) => {
+          const newMessages = [...prev];
+          const lastMsg = newMessages[newMessages.length - 1];
+          if (lastMsg && lastMsg.role === "model") {
+            lastMsg.content = assistantMessage;
           }
-          
-          if (endIdx !== -1) {
-            const jsonStr = buffer.substring(startIdx, endIdx + 1);
-            try {
-              const json = JSON.parse(jsonStr);
-              const text = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
-              assistantMessage += text;
-              setMessages((prev) => {
-                const newMessages = [...prev];
-                const lastMsg = newMessages[newMessages.length - 1];
-                if (lastMsg && lastMsg.role === "model") lastMsg.content = assistantMessage;
-                return [...newMessages];
-              });
-            } catch (e) {}
-            buffer = buffer.substring(endIdx + 1);
-            startIdx = buffer.indexOf('{');
-          } else break;
-        }
+          return [...newMessages];
+        });
       }
     } catch (error) {
-      setMessages((prev) => [...prev, { role: "model", content: "Xin lỗi, đã có lỗi xảy ra." }]);
+      console.error("Chat error:", error);
+      setMessages((prev) => [...prev, { role: "model", content: "Xin lỗi, đã có lỗi xảy ra trong quá trình kết nối." }]);
     } finally {
       setIsLoading(false);
     }
@@ -171,7 +118,17 @@ export default function Home() {
             <h1 className="text-sm font-black tracking-[0.1em] text-foreground uppercase">
               SQL AI <span className="text-primary/60">Insight</span>
             </h1>
-            <div className="h-3 w-[1px] bg-foreground/10 hidden sm:block" />
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-[1px] bg-foreground/10 hidden sm:block" />
+              <div className={cn(
+                "px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border",
+                process.env.NEXT_PUBLIC_API_MODE === 'dotnet' 
+                  ? "bg-blue-500/10 text-blue-500 border-blue-500/20" 
+                  : "bg-amber-500/10 text-amber-500 border-amber-500/20"
+              )}>
+                {process.env.NEXT_PUBLIC_API_MODE === 'dotnet' ? ".NET API" : "Direct Mode"}
+              </div>
+            </div>
             <p className="text-[9px] font-bold text-muted-foreground/30 uppercase tracking-[0.3em] hidden sm:block">Powered by Gemini</p>
           </div>
         </div>
@@ -246,22 +203,23 @@ export default function Home() {
                     <div className="whitespace-pre-wrap font-semibold text-foreground/90">{msg.content}</div>
                   ) : (
                     <div className="markdown-content prose-headings:font-heading prose-headings:font-bold">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {msg.content}
-                      </ReactMarkdown>
+                      {msg.content ? (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {msg.content}
+                        </ReactMarkdown>
+                      ) : isLoading && index === messages.length - 1 && (
+                        <div className="flex gap-2 py-2">
+                          <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                          <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                          <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" />
+                        </div>
+                      )}
                     </div>
                   )}
-                  {msg.role === "model" && (
-                    <div className="mt-4 pt-4 border-t border-primary/10 flex items-center gap-3">
+                  {msg.role === "model" && msg.content && (
+                    <div className="mt-4 pt-4 border-t border-primary/10 flex items-center gap-3 animate-in fade-in duration-500">
                       <div className="px-2 py-0.5 rounded bg-primary/10 text-[10px] font-bold text-primary uppercase tracking-tighter">AI INSIGHT</div>
                       <div className="text-[10px] text-muted-foreground/40 font-medium">Chat can make mistakes. Check important info.</div>
-                    </div>
-                  )}
-                  {isLoading && index === messages.length - 1 && !msg.content && (
-                    <div className="flex gap-2">
-                      <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                      <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                      <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" />
                     </div>
                   )}
                 </div>

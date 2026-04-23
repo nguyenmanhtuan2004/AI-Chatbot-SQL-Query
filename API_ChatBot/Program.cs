@@ -68,6 +68,17 @@ namespace API_ChatBot
                 Console.WriteLine("WARN: Thiếu thông tin xác thực (API_KEY hoặc GOOGLE_ACCESS_TOKEN). Chat sẽ không hoạt động cho đến khi được cấu hình.");
             }
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFrontend",
+                    policy =>
+                    {
+                        policy.WithOrigins("http://localhost:3000")
+                              .AllowAnyHeader()
+                              .AllowAnyMethod();
+                    });
+            });
+
             var app = builder.Build();
 
             if (app.Environment.IsDevelopment())
@@ -76,6 +87,7 @@ namespace API_ChatBot
                 app.UseSwaggerUI();
             }
 
+            app.UseCors("AllowFrontend");
             app.UseAuthorization();
             app.MapControllers();
 
