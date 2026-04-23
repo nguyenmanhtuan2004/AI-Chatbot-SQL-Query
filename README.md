@@ -1,62 +1,105 @@
-# AI-Chatbot-SQL-Query
+# 🤖 SQL AI Insight - AI-Powered SQL Chatbot
 
-ASP.NET Core 8 Web API + Docker Compose (SQL Server 2022, Qdrant).
+Dự án này là một hệ thống Chatbot thông minh cho phép người dùng truy vấn dữ liệu SQL Server bằng ngôn ngữ tự nhiên thông qua sức mạnh của Google Gemini AI. Hệ thống được xây dựng với kiến trúc hiện đại, hỗ trợ Streaming thời gian thực và khả năng chuyển đổi linh hoạt giữa các phương thức kết nối.
 
-## Cấu trúc project
+---
 
-```
-AI-Chatbot-SQL-Query/
-├── docker-compose.yml          # Khởi chạy toàn bộ stack
-├── API_ChatBot/
-│   ├── Dockerfile
-│   ├── .dockerignore
-│   ├── Program.cs
-│   ├── appsettings.json
-│   ├── Data/
-│   │   └── AppDbContext.cs
-│   └── Controllers/
-```
+## ✨ Tính năng nổi bật
 
-## Services
+-   **Natural Language to SQL**: Chuyển đổi câu hỏi ngôn ngữ tự nhiên thành câu lệnh SQL chính xác.
+-   **Real-time Streaming**: Phản hồi từ AI được hiển thị dần dần ngay khi đang xử lý (Event-Stream).
+-   **Hybrid API Mode**: 
+    -   `Direct Mode`: Kết nối trực tiếp Gemini qua proxy Next.js (nhanh, gọn).
+    -   `Dotnet Mode`: Kết nối qua ASP.NET Core API (bảo mật, hỗ trợ logic nghiệp vụ phức tạp).
+-   **Giao diện Premium**: UI hiện đại với Glassmorphism, Dark Mode, và hiệu ứng mượt mà (Next.js + Tailwind CSS).
+-   **Cấu hình linh hoạt**: Dễ dàng điều chỉnh `Temperature`, `Max Tokens` ngay từ file môi trường.
 
-| Service    | Port host | Mô tả                    |
-|------------|-----------|--------------------------|
-| API        | 5025      | ASP.NET Core 8 Web API   |
-| SQL Server | 1433      | Microsoft SQL Server 2022|
-| Qdrant     | 6333/6334 | Vector database          |
+---
 
-## Chạy với Docker
+## 🏗️ Kiến trúc hệ thống
+
+### 1. Frontend (`/frontend`)
+-   **Framework**: Next.js 14 (App Router)
+-   **Styling**: Tailwind CSS + Shadcn UI
+-   **Icons**: Phosphor Icons
+-   **Logic**: Centralized `ChatService` xử lý đa luồng kết nối.
+
+### 2. Backend API (`/API_ChatBot`)
+-   **Framework**: ASP.NET Core 8
+-   **ORM**: Entity Framework Core
+-   **Documentation**: Swagger / OpenAPI
+
+### 3. Infrastructure (Docker Stack)
+-   **Database**: SQL Server 2022
+-   **Vector DB**: Qdrant (phục vụ cho RAG/Knowledge Base trong tương lai)
+
+---
+
+## ⚡ Khởi chạy nhanh (Quick Start)
+
+Nếu bạn đang dùng Windows, bạn có thể chạy toàn bộ dự án (tự động dọn dẹp port cũ và mở FE/BE) bằng một trong hai cách:
+
+1.  **Double-click** vào file `run-all.bat` ở thư mục gốc.
+2.  Hoặc chạy lệnh sau trong PowerShell:
+    ```powershell
+    ./run-all.ps1
+    ```
+
+---
+
+## 🚀 Hướng dẫn khởi chạy
+
+### 1. Chạy với Docker (Khuyên dùng)
+
+Để chạy toàn bộ hệ thống (API, SQL Server, Qdrant) trong một lệnh duy nhất:
 
 ```bash
 docker compose up --build
 ```
 
-Swagger UI: http://localhost:5025/swagger/index.html  
-Qdrant Dashboard: http://localhost:6333/dashboard
+-   **API Swagger**: [http://localhost:5026/swagger](http://localhost:5026/swagger)
+-   **Frontend**: [http://localhost:3000](http://localhost:3000)
+-   **Qdrant Dashboard**: [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
 
-## Chạy local (không Docker)
+### 2. Chạy Local (Không Docker)
 
+#### Backend:
 ```bash
 cd API_ChatBot
 dotnet run
 ```
 
-> Yêu cầu SQL Server và Qdrant đang chạy ở localhost.
+#### Frontend:
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-## Kết nối SQL Server bằng SSMS
+---
 
-**Dùng SSMS (SQL Server Management Studio)**
+## ⚙️ Cấu hình hệ thống (Environment Variables)
 
-1. Mở SSMS → cửa sổ **Connect to Server** hiện ra
-2. Điền:
-   - **Server name:** `localhost,14330`
-   - **Authentication:** `SQL Server Authentication`
-   - **Login:** `sa`
-   - **Password:** `YourStrong@Passw0rd`
-3. Nhấn **Connect**
+Hệ thống sử dụng các file `.env` và `.env.local` để quản lý cấu hình.
 
-> Docker container SQL Server phải đang chạy (`docker compose up`) thì mới kết nối được.
+### Các thông số quan trọng:
+-   `NEXT_PUBLIC_API_MODE`: Chọn `dotnet` hoặc `direct`.
+-   `TEMPERATURE`: Độ sáng tạo của AI (0.0 - 2.0).
+-   `MAX_OUTPUT_TOKENS`: Độ dài tối đa của câu trả lời.
 
-## Đổi mật khẩu SA (mặc định)
+*Xem chi tiết hướng dẫn trong từng file `.env` tại thư mục `/frontend` và `/API_ChatBot`.*
 
-Thay `YourStrong@Passw0rd` trong `docker-compose.yml` và `appsettings.json`.
+---
+
+## 🛠️ Kết nối cơ sở dữ liệu (SSMS)
+
+Nếu bạn muốn quản lý dữ liệu trực tiếp qua SQL Server Management Studio:
+-   **Server name**: `localhost,14330`
+-   **Authentication**: SQL Server Authentication
+-   **Login**: `sa`
+-   **Password**: `YourStrong@Passw0rd` (Mặc định trong docker-compose)
+
+---
+
+## 📝 Giấy phép
+Dự án được phát triển cho mục đích học tập và triển khai hệ thống chatbot truy vấn dữ liệu thực tế.

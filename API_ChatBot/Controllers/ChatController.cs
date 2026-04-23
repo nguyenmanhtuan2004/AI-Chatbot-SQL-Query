@@ -37,10 +37,16 @@ namespace API_ChatBot.Controllers
                 var apiKey = _configuration["API_KEY"] ?? _configuration["GoogleAI:ApiKey"];
                 var requestUrl = ResolveRequestUrl(_configuration["REQUEST_URL"], apiKey ?? string.Empty);
 
+                var maxTokensStr = _configuration["MAX_OUTPUT_TOKENS"];
+                int maxTokens = int.TryParse(maxTokensStr, out var val) ? val : 2048;
+
+                var tempStr = _configuration["TEMPERATURE"];
+                float temperature = float.TryParse(tempStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var t) ? t : 0.7f;
+
                 var payload = JsonSerializer.Serialize(new
                 {
                     contents = new[] { new { role = "user", parts = new[] { new { text = request.Question } } } },
-                    generationConfig = new { temperature = 0.7, maxOutputTokens = 2048 }
+                    generationConfig = new { temperature = temperature, maxOutputTokens = maxTokens }
                 });
 
                 var client = _httpClientFactory.CreateClient();
