@@ -1,9 +1,29 @@
-# Agent related files
-.agent/
+# ========================
+# Python
+# ========================
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.so
+pip-log.txt
+pip-delete-this-directory.txt
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
 
+# ========================
 # .NET / Visual Studio
-bin/
-obj/
+# ========================
 [Bb]in/
 [Oo]bj/
 .vs/
@@ -11,30 +31,63 @@ obj/
 *.suo
 *.userosscache
 *.sln.docstates
+*.csproj.user
 
+# ========================
+# Node.js / Next.js
+# ========================
+node_modules/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+/coverage
+/.next/
+/out/
+/build
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
-# IDEs
-.vscode/
-.idea/
-
-
-# Environment and Secrets
+# ========================
+# Environment & Secrets
+# ========================
 .env
 .env.*
-.venv
-.venv.*
-.github
 appsettings.Development.json
 
 # GCP Service Account Keys
 ntb-text-to-sql-*.json
 *key.json
+*credentials.json
+*service-account*.json
 
-# Docker
-.dockerignore
-# (Keep Dockerfile and docker-compose.yml)
+# ========================
+# IDEs & Editors
+# ========================
+.vscode/
+.idea/
+*.pem
 
+# ========================
 # OS Files
+# ========================
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# ========================
+# Docker
+# ========================
+.dockerignore
+
+# ========================
+# Misc
+# ========================
+.agent/
