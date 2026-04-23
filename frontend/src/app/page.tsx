@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Send, User, Bot, Loader2 } from "lucide-react";
+import { PaperPlaneRight, CircleNotch, Clock, List, X } from "@phosphor-icons/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ export default function Home() {
   const [inputValue, setInputValue] = React.useState("");
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -33,7 +34,6 @@ export default function Home() {
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
 
-    // Lọc bỏ các tin nhắn trống để tránh lỗi API
     const chatHistory = messages
       .filter(msg => msg.content.trim() !== "")
       .map(msg => ({
@@ -53,33 +53,24 @@ export default function Home() {
         }),
       });
 
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
-        console.error("API Error:", errorBody);
-        throw new Error(errorBody.error?.message || "Failed to fetch");
-      }
+      if (!response.ok) throw new Error("Failed to fetch");
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let assistantMessage = "";
       let buffer = "";
 
-      // Thêm tin nhắn trống của model để bắt đầu hiển thị
       setMessages((prev) => [...prev, { role: "model", content: "" }]);
 
       while (true) {
         const { done, value } = await reader?.read() || { done: true, value: undefined };
         if (done) break;
-
         buffer += decoder.decode(value, { stream: true });
         
-        // Gemini streaming có thể trả về một mảng JSON [{}, {}] hoặc các object riêng lẻ
-        // Logic này tìm kiếm các cặp ngoặc {} hoàn chỉnh
         let startIdx = buffer.indexOf('{');
         while (startIdx !== -1) {
           let stack = 0;
           let endIdx = -1;
-          
           for (let i = startIdx; i < buffer.length; i++) {
             if (buffer[i] === '{') stack++;
             else if (buffer[i] === '}') {
@@ -97,55 +88,143 @@ export default function Home() {
               const json = JSON.parse(jsonStr);
               const text = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
               assistantMessage += text;
-              
               setMessages((prev) => {
                 const newMessages = [...prev];
                 const lastMsg = newMessages[newMessages.length - 1];
-                if (lastMsg && lastMsg.role === "model") {
-                  lastMsg.content = assistantMessage;
-                }
+                if (lastMsg && lastMsg.role === "model") lastMsg.content = assistantMessage;
                 return [...newMessages];
               });
-            } catch (e) {
-              console.warn("Lỗi parse chunk JSON:", e);
-            }
-            // Tiếp tục tìm object tiếp theo sau endIdx
+            } catch (e) {}
             buffer = buffer.substring(endIdx + 1);
             startIdx = buffer.indexOf('{');
-          } else {
-            // Chưa có dấu đóng ngoặc hoàn chỉnh, chờ chunk tiếp theo
-            break;
-          }
+          } else break;
         }
       }
     } catch (error) {
-      console.error("Error:", error);
-      setMessages((prev) => [...prev, { role: "model", content: "Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại sau." }]);
+      setMessages((prev) => [...prev, { role: "model", content: "Xin lỗi, đã có lỗi xảy ra." }]);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <main className="relative min-h-screen flex flex-col items-center justify-center p-4 overflow-hidden mesh-bg">
-      {/* Visual Depth Layers */}
-      <div className="absolute top-[-5%] left-[-5%] w-[40%] h-[40%] bg-blue-100/20 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-[-5%] right-[-5%] w-[40%] h-[40%] bg-indigo-100/20 rounded-full blur-[100px] pointer-events-none" />
+    <main className="relative h-screen flex flex-col items-center p-0 overflow-hidden mesh-bg font-sans selection:bg-primary/30">
+      {/* Dynamic Background Elements */}
+      <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/5 rounded-full blur-[140px] pointer-events-none animate-pulse-slow" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-accent/5 rounded-full blur-[140px] pointer-events-none animate-pulse-slow [animation-delay:4s]" />
 
-      <div className="w-full max-w-3xl flex flex-col h-[85vh] z-10 animate-in fade-in zoom-in-95 duration-700 ease-out">
-        {/* Chat Messages Area */}
+      {/* Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[60] animate-in fade-in duration-300"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - History */}
+      <aside className={cn(
+        "fixed top-0 left-0 h-full w-72 bg-black/95 backdrop-blur-2xl z-[70] shadow-2xl transition-all duration-500 ease-in-out border-r border-white/5",
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        <div className="flex flex-col h-full p-6">
+          <div className="flex items-center justify-between mb-10">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30 shadow-[0_0_15px_rgba(var(--primary-rgb),0.1)]">
+                <Clock size={20} weight="bold" className="text-primary" />
+              </div>
+              <h2 className="text-sm font-black text-white uppercase tracking-widest">History</h2>
+            </div>
+            <button 
+              onClick={() => setIsSidebarOpen(false)}
+              className="p-2 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-all active:scale-90"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-2 scrollbar-hide flex flex-col items-center justify-center text-center px-4">
+            <div className="w-14 h-14 rounded-[22px] bg-white/5 flex items-center justify-center mb-5 border border-white/10 shadow-inner">
+              <Clock size={24} weight="light" className="text-white/40" />
+            </div>
+            <p className="text-[11px] font-bold text-white/40 uppercase tracking-[0.2em]">No history yet</p>
+          </div>
+
+          <div className="pt-6 border-t border-white/5 mt-auto">
+            <button className="w-full py-3 rounded-xl bg-primary text-white text-[12px] font-bold uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/20">
+              New Chat
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Floating Header */}
+      <header className="fixed top-6 left-0 right-0 z-50 px-8 flex justify-between items-center pointer-events-none animate-in fade-in duration-1000">
+        {/* Left: Toggle & Branding */}
+        <div className="flex items-center gap-4 pointer-events-auto">
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            className="w-10 h-10 flex items-center justify-center rounded-2xl glass-panel border border-primary/10 text-foreground/60 hover:text-primary hover:border-primary/30 transition-all shadow-sm active:scale-90"
+          >
+            <List size={22} weight="bold" />
+          </button>
+          <div className="flex items-center gap-3">
+            <h1 className="text-sm font-black tracking-[0.1em] text-foreground uppercase">
+              SQL AI <span className="text-primary/60">Insight</span>
+            </h1>
+            <div className="h-3 w-[1px] bg-foreground/10 hidden sm:block" />
+            <p className="text-[9px] font-bold text-muted-foreground/30 uppercase tracking-[0.3em] hidden sm:block">Powered by Gemini</p>
+          </div>
+        </div>
+
+        {/* Right: Nav Chips */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <div className="flex items-center p-1 rounded-full glass-panel border border-primary/5 shadow-sm">
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-1.5 rounded-full text-[10px] font-black text-muted-foreground/60 hover:text-primary transition-all active:scale-95 uppercase tracking-[0.15em]"
+            >
+              New Chat
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="w-full max-w-3xl flex flex-col h-full pt-16 z-10 mx-auto">
+        {/* Chat Messages Area with Mask */}
         <div 
           ref={scrollRef}
-          className="flex-1 overflow-y-auto mb-4 space-y-6 px-4 py-6 scrollbar-hide"
+          className="flex-1 overflow-y-auto space-y-8 px-4 py-8 scrollbar-hide pb-40"
+          style={{
+            maskImage: 'linear-gradient(to bottom, transparent, black 60px, black calc(100% - 120px), transparent)',
+            WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 60px, black calc(100% - 120px), transparent)'
+          }}
         >
           {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-60">
-              <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center">
-                <Bot className="w-8 h-8 text-indigo-500" />
+            <div className="h-full flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-1000">
+              <div className="max-w-2xl mb-12">
+                <h2 className="text-4xl font-heading font-extrabold text-foreground mb-4 tracking-tight leading-tight">
+                  Tương lai của <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Truy vấn Dữ liệu</span>
+                </h2>
+                <p className="text-muted-foreground text-lg leading-relaxed max-w-lg mx-auto">
+                  Khám phá dữ liệu của bạn thông qua sức mạnh AI. Lịch sử truy vấn hiện đã sẵn sàng ở Sidebar bên trái.
+                </p>
               </div>
-              <div>
-                <h2 className="text-xl font-semibold text-zinc-900">Sẵn sàng hỗ trợ bạn</h2>
-                <p className="text-sm text-zinc-500">Hãy bắt đầu cuộc hội thoại bằng cách nhập câu hỏi bên dưới.</p>
+
+              <div className="flex flex-wrap justify-center gap-3 w-full max-w-2xl">
+                {[
+                  { title: "Phân tích Doanh thu", value: "Liệt kê doanh thu theo từng tháng trong năm nay" },
+                  { title: "Schema", value: "Cấu trúc bảng Orders và Customers" },
+                  { title: "Khách hàng", value: "Top 10 khách hàng có giá trị đơn hàng cao nhất" },
+                  { title: "Tối ưu Query", value: "Tối ưu hóa query SQL cho bảng lớn" }
+                ].map((suggestion, i) => (
+                  <button 
+                    key={i}
+                    onClick={() => setInputValue(suggestion.value)}
+                    className="px-4 py-2.5 rounded-xl glass-panel border border-primary/10 hover:border-primary/30 hover:bg-primary/5 text-[13px] font-semibold text-muted-foreground hover:text-primary transition-all duration-300 shadow-sm hover:shadow-md"
+                  >
+                    {suggestion.title}
+                  </button>
+                ))}
               </div>
             </div>
           ) : (
@@ -153,36 +232,36 @@ export default function Home() {
               <div 
                 key={index}
                 className={cn(
-                  "flex items-start gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300",
-                  msg.role === "user" ? "flex-row-reverse" : "flex-row"
+                  "flex w-full animate-in fade-in slide-in-from-bottom-4 duration-500",
+                  msg.role === "user" ? "justify-end" : "justify-start"
                 )}
               >
                 <div className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center shrink-0 border",
-                  msg.role === "user" ? "bg-zinc-100 border-zinc-200" : "bg-indigo-50 border-indigo-100"
-                )}>
-                  {msg.role === "user" ? <User className="w-5 h-5 text-zinc-600" /> : <Bot className="w-5 h-5 text-indigo-500" />}
-                </div>
-                <div className={cn(
-                  "max-w-[80%] rounded-2xl p-4 text-sm md:text-base leading-relaxed",
+                  "relative max-w-full rounded-2xl p-5 md:p-6 text-[15px] md:text-base leading-relaxed transition-all shadow-lg hover:shadow-xl",
                   msg.role === "user" 
-                    ? "bg-indigo-500 text-white rounded-tr-none shadow-sm" 
-                    : "bg-white border border-zinc-200 text-zinc-800 rounded-tl-none shadow-sm"
+                    ? "bg-white text-foreground border border-black/5 rounded-tr-none" 
+                    : "glass-panel border border-primary/10 text-foreground rounded-tl-none"
                 )}>
                   {msg.role === "user" ? (
-                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                    <div className="whitespace-pre-wrap font-semibold text-foreground/90">{msg.content}</div>
                   ) : (
-                    <div className="markdown-content">
+                    <div className="markdown-content prose-headings:font-heading prose-headings:font-bold">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {msg.content}
                       </ReactMarkdown>
                     </div>
                   )}
+                  {msg.role === "model" && (
+                    <div className="mt-4 pt-4 border-t border-primary/10 flex items-center gap-3">
+                      <div className="px-2 py-0.5 rounded bg-primary/10 text-[10px] font-bold text-primary uppercase tracking-tighter">AI INSIGHT</div>
+                      <div className="text-[10px] text-muted-foreground/40 font-medium">Chat can make mistakes. Check important info.</div>
+                    </div>
+                  )}
                   {isLoading && index === messages.length - 1 && !msg.content && (
-                    <div className="flex gap-1 mt-1">
-                      <span className="w-1.5 h-1.5 bg-zinc-300 rounded-full animate-bounce" />
-                      <span className="w-1.5 h-1.5 bg-zinc-300 rounded-full animate-bounce [animation-delay:0.2s]" />
-                      <span className="w-1.5 h-1.5 bg-zinc-300 rounded-full animate-bounce [animation-delay:0.4s]" />
+                    <div className="flex gap-2">
+                      <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                      <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                      <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" />
                     </div>
                   )}
                 </div>
@@ -191,40 +270,29 @@ export default function Home() {
           )}
         </div>
 
-        {/* Input Area */}
-        <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 p-2 pb-4 transition-all duration-500 hover:shadow-md focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-400">
-          <div className="relative flex items-center">
-            <Input
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-              placeholder="Nhập câu hỏi hoặc lệnh của bạn..."
-              className={cn(
-                "w-full h-16 pl-6 pr-20 bg-transparent border-none shadow-none text-lg font-medium text-zinc-900",
-                "placeholder:text-zinc-500 placeholder:font-medium focus-visible:ring-0",
-                "transition-all duration-300"
-              )}
-            />
-            <Button
-              onClick={handleSend}
-              disabled={!inputValue.trim() || isLoading}
-              size="icon"
-              className={cn(
-                "absolute right-3 w-12 h-12 rounded-full",
-                "bg-indigo-500 hover:bg-indigo-600 text-white transition-all duration-300 shadow-sm",
-                "disabled:bg-indigo-500/20 disabled:text-indigo-300/50 disabled:shadow-none active:scale-95"
-              )}
-            >
-              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 fill-current" />}
-              <span className="sr-only">Gửi</span>
-            </Button>
-          </div>
-          
-          <div className="flex justify-between px-7 text-[10px] font-semibold tracking-widest text-zinc-500 uppercase pointer-events-none">
-            <span>AI-POWERED PROMPTING</span>
-            <div className="flex items-center gap-1.5">
-              <kbd className="font-sans">⌘</kbd>
-              <span>ENTER TO SEND</span>
+        {/* Floating Input Dock */}
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-3xl px-4 z-50 animate-in fade-in slide-in-from-bottom-6 duration-1000">
+          <div className="glass-panel rounded-full p-1.5 shadow-2xl shadow-primary/10 border border-primary/10 backdrop-blur-2xl">
+            <div className="relative flex items-center">
+              <Input
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+                placeholder="Hỏi về cơ sở dữ liệu của bạn..."
+                className="w-full h-12 pl-6 pr-16 bg-transparent border-none focus-visible:ring-0 text-base font-medium placeholder:text-muted-foreground/30"
+              />
+              <Button
+                onClick={handleSend}
+                disabled={!inputValue.trim() || isLoading}
+                size="icon"
+                className="absolute right-1.5 w-10 h-10 rounded-full bg-gradient-to-br from-primary via-primary to-primary/80 text-white shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:scale-105 active:scale-95 transition-all duration-300 border border-white/20"
+              >
+                {isLoading ? (
+                  <CircleNotch size={20} className="animate-spin" />
+                ) : (
+                  <PaperPlaneRight size={20} weight="bold" />
+                )}
+              </Button>
             </div>
           </div>
         </div>
