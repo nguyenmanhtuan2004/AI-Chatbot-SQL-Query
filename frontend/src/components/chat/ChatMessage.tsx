@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import { Copy, Check, PencilSimple } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { type Message } from "@/lib/chat-service";
+import { TerminalCodeBlock } from "./TerminalCodeBlock";
 
 interface ChatMessageProps {
   message: Message;
@@ -59,7 +60,33 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLoading, is
           <div className="flex flex-col">
             <div className="markdown-content prose-headings:font-heading prose-headings:font-bold">
               {message.content ? (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    pre({ children }) {
+                      return <>{children}</>;
+                    },
+                    code({ node, className, children, ...props }) {
+                      const match = /language-(\w+)/.exec(className || "");
+                      const isInline = !className;
+                      
+                      if (!isInline) {
+                        return (
+                          <TerminalCodeBlock 
+                            language={match?.[1]} 
+                            value={String(children).replace(/\n$/, "")} 
+                          />
+                        );
+                      }
+
+                      return (
+                        <code className={cn("px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono text-[0.9em]", className)} {...props}>
+                          {children}
+                        </code>
+                      );
+                    }
+                  }}
+                >
                   {message.content}
                 </ReactMarkdown>
               ) : isLoading && isLast && (

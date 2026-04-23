@@ -118,66 +118,69 @@ export default function Home() {
         apiMode={process.env.NEXT_PUBLIC_API_MODE} 
       />
 
-      <div className="w-full max-w-3xl flex flex-col h-full pt-16 z-10 mx-auto">
-        {/* Chat Messages Area */}
+      <div className="w-full flex-1 flex flex-col pt-16 z-10 overflow-hidden">
         <div 
           ref={scrollRef}
-          className="flex-1 overflow-y-auto space-y-8 px-4 py-8 scrollbar-hide pb-4"
+          className="flex-1 overflow-y-auto scrollbar-custom pb-10"
           style={{
             maskImage: 'linear-gradient(to bottom, transparent, black 60px, black calc(100% - 40px), transparent)',
             WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 60px, black calc(100% - 40px), transparent)'
           }}
         >
-          {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-1000">
-              <div className="max-w-2xl mb-12">
-                <h2 className="text-4xl font-heading font-extrabold text-foreground mb-4 tracking-tight leading-tight">
-                  Tương lai của <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Truy vấn Dữ liệu</span>
-                </h2>
-                <p className="text-muted-foreground text-lg leading-relaxed max-w-lg mx-auto">
-                  Khám phá dữ liệu của bạn thông qua sức mạnh AI. Lịch sử truy vấn hiện đã sẵn sàng ở Sidebar bên trái.
-                </p>
-              </div>
+          <div className="max-w-3xl mx-auto w-full px-4 py-8 space-y-8">
+            {messages.length === 0 ? (
+              <div className="h-full min-h-[50vh] flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-1000">
+                <div className="max-w-2xl mb-12">
+                  <h2 className="text-4xl font-heading font-extrabold text-foreground mb-4 tracking-tight leading-tight">
+                    Tương lai của <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Truy vấn Dữ liệu</span>
+                  </h2>
+                  <p className="text-muted-foreground text-lg leading-relaxed max-w-lg mx-auto">
+                    Khám phá dữ liệu của bạn thông qua sức mạnh AI. Lịch sử truy vấn hiện đã sẵn sàng ở Sidebar bên trái.
+                  </p>
+                </div>
 
-              <div className="flex flex-wrap justify-center gap-3 w-full max-w-2xl">
-                {[
-                  { title: "Phân tích Doanh thu", value: "Liệt kê doanh thu theo từng tháng trong năm nay" },
-                  { title: "Schema", value: "Cấu trúc bảng Orders và Customers" },
-                  { title: "Khách hàng", value: "Top 10 khách hàng có giá trị đơn hàng cao nhất" },
-                  { title: "Tối ưu Query", value: "Tối ưu hóa query SQL cho bảng lớn" }
-                ].map((suggestion, i) => (
-                  <button 
-                    key={i}
-                    onClick={() => {
-                      setInputValue(suggestion.value);
-                      setTimeout(() => document.getElementById("chat-input")?.focus(), 0);
-                    }}
-                    className="px-4 py-2.5 rounded-xl glass-panel border border-primary/10 hover:border-primary/30 hover:bg-primary/5 text-[13px] font-semibold text-muted-foreground hover:text-primary transition-all duration-300 shadow-sm hover:shadow-md"
-                  >
-                    {suggestion.title}
-                  </button>
-                ))}
+                <div className="flex flex-wrap justify-center gap-3 w-full max-w-2xl">
+                  {[
+                    { title: "Phân tích Doanh thu", value: "Liệt kê doanh thu theo từng tháng trong năm nay" },
+                    { title: "Schema", value: "Cấu trúc bảng Orders và Customers" },
+                    { title: "Khách hàng", value: "Top 10 khách hàng có giá trị đơn hàng cao nhất" },
+                    { title: "Tối ưu Query", value: "Tối ưu hóa query SQL cho bảng lớn" }
+                  ].map((suggestion, i) => (
+                    <button 
+                      key={i}
+                      onClick={() => {
+                        setInputValue(suggestion.value);
+                        setTimeout(() => document.getElementById("chat-input")?.focus(), 0);
+                      }}
+                      className="px-4 py-2.5 rounded-xl glass-panel border border-primary/10 hover:border-primary/30 hover:bg-primary/5 text-[13px] font-semibold text-muted-foreground hover:text-primary transition-all duration-300 shadow-sm hover:shadow-md"
+                    >
+                      {suggestion.title}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : (
-            messages.map((msg, index) => (
-              <ChatMessage 
-                key={index} 
-                message={msg} 
-                isLoading={isLoading} 
-                isLast={index === messages.length - 1} 
-                onEdit={handleEdit}
-              />
-            ))
-          )}
+            ) : (
+              messages.map((msg, index) => (
+                <ChatMessage 
+                  key={index} 
+                  message={msg} 
+                  isLoading={isLoading} 
+                  isLast={index === messages.length - 1} 
+                  onEdit={handleEdit}
+                />
+              ))
+            )}
+          </div>
         </div>
 
-        <ChatInput 
-          value={inputValue} 
-          onChange={setInputValue} 
-          onSend={handleSend} 
-          isLoading={isLoading} 
-        />
+        <div className="w-full max-w-3xl mx-auto px-4 pb-4">
+          <ChatInput 
+            value={inputValue} 
+            onChange={setInputValue} 
+            onSend={handleSend} 
+            isLoading={isLoading} 
+          />
+        </div>
       </div>
     </main>
   );
