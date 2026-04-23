@@ -10,12 +10,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'API configuration missing' }, { status: 500 });
     }
 
+    const maxTokens = parseInt(process.env.NEXT_PUBLIC_MAX_OUTPUT_TOKENS || '2048');
+    const temperature = parseFloat(process.env.NEXT_PUBLIC_TEMPERATURE || '0.7');
+
     const response = await fetch(`${apiUrl}?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ contents }),
+      body: JSON.stringify({ 
+        contents,
+        generationConfig: {
+          maxOutputTokens: maxTokens,
+          temperature: temperature
+        }
+      }),
     });
 
     if (!response.ok) {

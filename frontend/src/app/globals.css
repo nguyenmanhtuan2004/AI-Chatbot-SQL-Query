@@ -1,15 +1,13 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-manrope);
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --font-heading: var(--font-manrope);
+  --font-sans: var(--font-be-vietnam);
+  --font-mono: var(--font-fira-code);
+  --font-heading: var(--font-be-vietnam);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,88 +47,139 @@
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #18181b;
+  --background: #FAF5FF;
+  --foreground: #1E1B4B;
   --card: #ffffff;
-  --card-foreground: #18181b;
+  --card-foreground: #1E1B4B;
   --popover: #ffffff;
-  --popover-foreground: #18181b;
-  --primary: #6366f1;
+  --popover-foreground: #1E1B4B;
+  --primary: #7C3AED;
   --primary-foreground: #ffffff;
-  --secondary: #f9fafb;
-  --secondary-foreground: #18181b;
-  --muted: #f9fafb;
-  --muted-foreground: #71717a;
-  --accent: #f4f4f5;
-  --accent-foreground: #18181b;
+  --secondary: #A78BFA;
+  --secondary-foreground: #ffffff;
+  --muted: #F3E8FF;
+  --muted-foreground: #6B7280;
+  --accent: #06B6D4;
+  --accent-foreground: #ffffff;
   --destructive: #ef4444;
-  --border: #e5e7eb;
-  --input: #e5e7eb;
-  --ring: #6366f1;
-  --radius: 1rem;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #7C3AED;
+  --radius: 0.75rem;
 }
 
 .mesh-bg {
-  background-color: #ffffff;
+  background-color: #FAF5FF;
   background-image: 
-    radial-gradient(at 40% 20%, hsla(245, 80%, 96%, 1) 0px, transparent 50%),
-    radial-gradient(at 80% 0%, hsla(245, 80%, 96%, 1) 0px, transparent 50%),
-    radial-gradient(at 0% 50%, hsla(245, 80%, 96%, 1) 0px, transparent 50%);
+    radial-gradient(at 40% 20%, hsla(263, 70%, 94%, 1) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsla(189, 70%, 94%, 1) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsla(263, 70%, 94%, 1) 0px, transparent 50%);
+  position: relative;
+}
+
+.mesh-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(124, 58, 237, 0.03), transparent 50%);
+  animation: pulse-slow 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.2); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@utility glass-panel {
+  background-color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+@utility glass-panel-dark {
+  background-color: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+@utility bento-card {
+  @apply glass-panel rounded-2xl p-4 transition-all duration-300;
+  &:hover {
+    @apply shadow-xl -translate-y-1 border-primary/30;
+  }
+}
+
+@utility markdown-content {
+  pre {
+    @apply bg-slate-950 text-slate-50 p-4 rounded-xl my-4 border border-white/10 shadow-inner overflow-x-auto;
+  }
+  code {
+    @apply font-mono text-sm px-1.5 py-0.5 rounded bg-primary/10 text-primary;
+  }
+  pre code {
+    @apply p-0 bg-transparent text-inherit;
+  }
+  p { margin-bottom: 0.75rem; }
+  p:last-child { margin-bottom: 0; }
+  strong { font-weight: 700; color: var(--foreground); }
+  blockquote { border-left: 3px solid var(--primary); padding-left: 1rem; font-style: italic; margin: 0.75rem 0; color: var(--muted-foreground); }
+  ul, ol { margin: 0.75rem 0; padding-left: 1.5rem; }
+  li { margin-bottom: 0.25rem; }
+}
+
+@utility scrollbar-hide {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@utility animate-float {
+  animation: float 6s ease-in-out infinite;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #0F172A;
+  --foreground: #F8FAFC;
+  --card: #1E293B;
+  --card-foreground: #F8FAFC;
+  --popover: #1E293B;
+  --popover-foreground: #F8FAFC;
+  --primary: #8B5CF6;
+  --primary-foreground: #ffffff;
+  --secondary: #A78BFA;
+  --secondary-foreground: #0F172A;
+  --muted: #1E293B;
+  --muted-foreground: #94A3B8;
+  --accent: #06B6D4;
+  --accent-foreground: #0F172A;
+  --destructive: #ef4444;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #8B5CF6;
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
-  }
+* {
+  border-color: var(--border);
+  outline-color: rgba(var(--ring), 0.5);
 }
-@layer utilities {
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+body::selection {
+  background-color: rgba(124, 58, 237, 0.2);
 }
 
 .markdown-content p { margin-bottom: 0.75rem; }
