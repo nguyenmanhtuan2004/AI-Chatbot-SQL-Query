@@ -19,6 +19,9 @@ obj/
 # Environment and Secrets
 .env
 .env.*
+.venv
+.venv.*
+.github
 appsettings.Development.json
 
 # Docker
