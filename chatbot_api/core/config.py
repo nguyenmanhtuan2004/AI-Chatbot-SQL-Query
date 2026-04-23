@@ -1,8 +1,16 @@
 import os
 from dotenv import load_dotenv
 
-# Load file .env
-load_dotenv()
+# Đường dẫn gốc của dự án (chatbot_api/)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Load file .env từ đường dẫn tuyệt đối
+load_dotenv(os.path.join(BASE_DIR, ".env"))
+
+# Đảm bảo GOOGLE_APPLICATION_CREDENTIALS là đường dẫn tuyệt đối
+creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+if creds_path and not os.path.isabs(creds_path):
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.join(BASE_DIR, creds_path)
 
 class Settings:
     # Xác thực Google (Vertex AI / Gemini)

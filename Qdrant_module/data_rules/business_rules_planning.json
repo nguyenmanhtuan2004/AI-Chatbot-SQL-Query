@@ -12,8 +12,8 @@
       "sql_logic": "JOIN PRODUCTION_PLANS plan ON p.PlanID = plan.PlanID (hoặc join qua LineID, ProductID và WorkDate). Công thức: (SUM(p.Quantity) * 100.0) / NULLIF(MAX(plan.TargetQuantity), 0)",
       "conditions": "Thường GROUP BY theo plan.PlanID. Sử dụng MAX(plan.TargetQuantity) làm mẫu số để tránh bị nhân lên (duplicate data) nếu phép JOIN xuất hiện quan hệ 1-N. Dùng NULLIF để tránh lỗi chia cho 0.",
       "few_shot_example": {
-        "user_query": "Tiến độ hoàn thành kế hoạch của kế hoạch số KHSX-001 là bao nhiêu phần trăm?",
-        "expected_sql": "SELECT plan.PlanID, (SUM(p.Quantity) * 100.0) / NULLIF(MAX(plan.TargetQuantity), 0) AS PlanCompletionPercentage FROM PRODUCTIVITY p JOIN PRODUCTION_PLANS plan ON p.PlanID = plan.PlanID WHERE plan.PlanID = 'KHSX-001' GROUP BY plan.PlanID"
+        "user_query": "Tiến độ hoàn thành kế hoạch của kế hoạch số 1 là bao nhiêu phần trăm?",
+        "expected_sql": "SELECT plan.PlanID, (SUM(p.Quantity) * 100.0) / NULLIF(MAX(plan.TargetQuantity), 0) AS PlanCompletionPercentage FROM PRODUCTIVITY p JOIN PRODUCTION_PLANS plan ON p.PlanID = plan.PlanID WHERE plan.PlanID = 1 GROUP BY plan.PlanID"
       }
     }
   },

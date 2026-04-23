@@ -4,20 +4,33 @@ Tài liệu này hướng dẫn chi tiết cách khởi động backend FastAPI 
 
 ---
 
-## Bước 1: Mở Terminal và kích hoạt môi trường
+## Bước 1: Thiết lập môi trường (Dành cho máy mới chạy lần đầu)
 
-Bạn phải đảm bảo rằng mình đang ở đúng thư mục `chatbot_api` và môi trường ảo (venv) đã được kích hoạt.
+Vì thư mục `venv` không thể copy giữa các máy, nếu bạn mới tải source code về hoặc chạy trên máy mới, bạn cần phải cài đặt lại môi trường ảo.
 
 1. Mở cửa sổ Terminal (PowerShell hoặc CMD).
 2. Di chuyển đến thư mục `chatbot_api`:
    ```powershell
    cd E:\thuctap\AI-Chatbot-SQL-Query\chatbot_api
    ```
-3. Kích hoạt môi trường ảo:
+3. Tạo môi trường ảo (venv):
+   ```powershell
+   # Nếu máy bạn cài sẵn Python 3.12 qua file exe:
+   py -3.12 -m venv venv
+   # Hoặc dùng lệnh python mặc định:
+   python -m venv venv
+   ```
+4. Kích hoạt môi trường ảo:
    ```powershell
    .\venv\Scripts\Activate.ps1
    ```
    *(Nếu thành công, bạn sẽ thấy chữ `(venv)` xuất hiện ở đầu dòng lệnh).*
+5. Cài đặt các thư viện cần thiết:
+   ```powershell
+   pip install -r requirements.txt
+   ```
+
+*(Lưu ý: Nếu bạn đã làm Bước 1 ở những lần trước rồi, các lần sau mở máy lên bạn chỉ cần làm Bước 1.1, 1.2 và 1.4 để kích hoạt môi trường là đủ).*
 
 ---
 

@@ -13,7 +13,7 @@
       "conditions": "Sử dụng điều kiện lọc thời gian lên cột WorkDate của bảng WORK_ASSIGNMENTS và mã/tên dây chuyền dựa trên câu hỏi.",
       "few_shot_example": {
         "user_query": "Ai là người làm ở chuyền 1 hôm nay?",
-        "expected_sql": "SELECT e.EmployeeName, e.Role FROM WORK_ASSIGNMENTS wa JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID JOIN PRODUCTION_LINES pl ON wa.LineID = pl.LineID WHERE pl.LineID = 'L01' AND wa.WorkDate = CAST(GETDATE() AS DATE)"
+        "expected_sql": "SELECT e.EmployeeName, e.Position FROM WORK_ASSIGNMENTS wa JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID JOIN PRODUCTION_LINES pl ON wa.LineID = pl.LineID WHERE pl.LineID = 'L01' AND wa.WorkDate = CAST(GETDATE() AS DATE)"
       }
     }
   },

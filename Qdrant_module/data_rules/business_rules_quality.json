@@ -27,11 +27,11 @@
     },
     "content": {
       "description": "Tính phần trăm sản phẩm bị lỗi KHÔNG thể sửa chữa được (phế phẩm) trên tổng sản lượng. Chỉ đếm các lỗi rớt hẳn.",
-      "sql_logic": "JOIN DEFECTS d ON p.ID = d.ProductivityID JOIN DEFECT_CATEGORIES cat ON d.DefectCategoryID = cat.CategoryID. Công thức: (SUM(CASE WHEN cat.IsRepairable = 0 THEN d.DefectCount ELSE 0 END) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100",
+      "sql_logic": "JOIN DEFECTS d ON p.ID = d.ProductivityID JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode. Công thức: (SUM(CASE WHEN cat.IsRepairable = 0 THEN d.DefectCount ELSE 0 END) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100",
       "conditions": "Sử dụng CASE WHEN kết hợp với điều kiện cat.IsRepairable = 0 trong hàm SUM để chỉ lấy các lỗi phế phẩm làm tử số.",
       "few_shot_example": {
         "user_query": "Tỉ lệ phế phẩm của sản phẩm Áo Sơ Mi hôm qua là bao nhiêu?",
-        "expected_sql": "SELECT (SUM(CASE WHEN cat.IsRepairable = 0 THEN d.DefectCount ELSE 0 END) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100 AS ScrapRate FROM PRODUCTIVITY p JOIN DEFECTS d ON p.ID = d.ProductivityID JOIN DEFECT_CATEGORIES cat ON d.DefectCategoryID = cat.CategoryID WHERE p.ProductID = 'Ao_So_Mi' AND CAST(p.StartTime AS DATE) = CAST(DATEADD(day, -1, GETDATE()) AS DATE)"
+        "expected_sql": "SELECT (SUM(CASE WHEN cat.IsRepairable = 0 THEN d.DefectCount ELSE 0 END) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100 AS ScrapRate FROM PRODUCTIVITY p JOIN DEFECTS d ON p.ID = d.ProductivityID JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode WHERE p.ProductID = 'Ao_So_Mi' AND CAST(p.StartTime AS DATE) = CAST(DATEADD(day, -1, GETDATE()) AS DATE)"
       }
     }
   },
@@ -45,11 +45,11 @@
     },
     "content": {
       "description": "Truy vấn và thống kê danh sách hoặc số lượng các lỗi được đánh giá là đặc biệt nghiêm trọng.",
-      "sql_logic": "JOIN DEFECT_CATEGORIES cat ON d.DefectCategoryID = cat.CategoryID.",
+      "sql_logic": "JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode.",
       "conditions": "Bắt buộc phải có điều kiện lọc WHERE cat.Severity = 'Cao' hoặc cat.Severity = 'High' (tùy vào dữ liệu thực tế).",
       "few_shot_example": {
         "user_query": "Có bao nhiêu lỗi nghiêm trọng xảy ra ở chuyền 2 trong tuần này?",
-        "expected_sql": "SELECT SUM(d.DefectCount) AS TotalCriticalDefects FROM DEFECTS d JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID JOIN DEFECT_CATEGORIES cat ON d.DefectCategoryID = cat.CategoryID WHERE (cat.Severity = 'Cao' OR cat.Severity = 'High') AND p.LineID = 'L02' AND p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0)"
+        "expected_sql": "SELECT SUM(d.DefectCount) AS TotalCriticalDefects FROM DEFECTS d JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode WHERE (cat.Severity = 'Cao' OR cat.Severity = 'High') AND p.LineID = 'L02' AND p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0)"
       }
     }
   }
