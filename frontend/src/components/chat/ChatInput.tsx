@@ -29,7 +29,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ value, onChange, onSend, i
   };
 
   return (
-    <div className="w-full px-4 pb-8 pt-2 z-50 animate-in fade-in slide-in-from-bottom-6 duration-1000 shrink-0">
+    <div className="w-full z-50 animate-in fade-in slide-in-from-bottom-6 duration-1000 shrink-0">
       <div className="glass-panel rounded-3xl p-1.5 shadow-2xl shadow-primary/10 border border-primary/10 backdrop-blur-2xl transition-all duration-300">
         <div className="relative flex">
           <textarea
