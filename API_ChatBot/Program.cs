@@ -31,7 +31,17 @@ namespace API_ChatBot
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
-            builder.Services.AddHttpClient();
+            builder.Services.AddHttpClient("", client =>
+            {
+                client.Timeout = TimeSpan.FromMinutes(2);
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(5), // Giữ kết nối lâu hơn để tái sử dụng
+                KeepAlivePingDelay = TimeSpan.FromSeconds(60),
+                KeepAlivePingTimeout = TimeSpan.FromSeconds(30),
+                EnableMultipleHttp2Connections = true // Quan trọng cho Streaming và hiệu suất cao
+            });
 
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("site_chat"),
@@ -49,13 +59,13 @@ namespace API_ChatBot
                 var port = int.Parse(builder.Configuration["Qdrant:Port"] ?? "6334");
                 return new QdrantClient(host, port);
             });
-            // Kiểm tra thông tin xác thực ngay từ lúc khởi động để tránh chạy app trong trạng thái thiếu cấu hình.
-            var apiKey = builder.Configuration["API_KEY"]
-                ?? builder.Configuration["GoogleAI:ApiKey"];
+            // Kiểm tra thông tin xác thực và in cảnh báo nếu thiếu
+            var apiKey = builder.Configuration["API_KEY"] ?? builder.Configuration["GoogleAI:ApiKey"];
             var accessToken = builder.Configuration["GOOGLE_ACCESS_TOKEN"];
+            
             if (string.IsNullOrWhiteSpace(apiKey) && string.IsNullOrWhiteSpace(accessToken))
             {
-                throw new Exception("Thiếu thông tin xác thực. Hãy cấu hình API_KEY hoặc GOOGLE_ACCESS_TOKEN.");
+                Console.WriteLine("WARN: Thiếu thông tin xác thực (API_KEY hoặc GOOGLE_ACCESS_TOKEN). Chat sẽ không hoạt động cho đến khi được cấu hình.");
             }
 
             var app = builder.Build();

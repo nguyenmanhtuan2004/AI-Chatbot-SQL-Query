@@ -23,179 +23,149 @@ namespace API_ChatBot.Controllers
         }
 
         [HttpPost("ask")]
-        public async Task<IActionResult> AskAI([FromBody] ChatRequest request)
+        public async Task AskAI([FromBody] ChatRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.Question))
             {
-                return BadRequest("Question không được để trống.");
+                Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                await Response.WriteAsync("Question không được để trống.");
+                return;
             }
 
             try
             {
                 var apiKey = _configuration["API_KEY"] ?? _configuration["GoogleAI:ApiKey"];
-                var accessToken = _configuration["GOOGLE_ACCESS_TOKEN"];
-                if (string.IsNullOrWhiteSpace(apiKey) && string.IsNullOrWhiteSpace(accessToken))
-                {
-                    return StatusCode(500, "Thiếu thông tin xác thực. Hãy cấu hình API_KEY hoặc GOOGLE_ACCESS_TOKEN.");
-                }
-
-                var requestUrlOverride = _configuration["REQUEST_URL"] ?? _configuration["GoogleAI:RequestUrl"];
-                var requestUrl = ResolveRequestUrl(requestUrlOverride, apiKey ?? string.Empty, _configuration);
+                var requestUrl = ResolveRequestUrl(_configuration["REQUEST_URL"], apiKey ?? string.Empty);
 
                 var payload = JsonSerializer.Serialize(new
                 {
-                    contents = new[]
-                    {
-                        new
-                        {
-                            role = "user",
-                            parts = new[] { new { text = request.Question } }
-                        }
-                    }
+                    contents = new[] { new { role = "user", parts = new[] { new { text = request.Question } } } },
+                    generationConfig = new { temperature = 0.7, maxOutputTokens = 2048 }
                 });
 
                 var client = _httpClientFactory.CreateClient();
-                if (!string.IsNullOrWhiteSpace(accessToken))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                }
+                client.Timeout = TimeSpan.FromMinutes(2);
+
+                if (!string.IsNullOrWhiteSpace(_configuration["GOOGLE_ACCESS_TOKEN"]))
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _configuration["GOOGLE_ACCESS_TOKEN"]);
 
                 var userProject = _configuration["GOOGLE_USER_PROJECT"];
                 if (!string.IsNullOrWhiteSpace(userProject))
-                {
-                    client.DefaultRequestHeaders.Remove("x-goog-user-project");
                     client.DefaultRequestHeaders.Add("x-goog-user-project", userProject);
-                }
 
-                using var content = new StringContent(payload, Encoding.UTF8, "application/json");
-                using var response = await client.PostAsync(requestUrl, content);
-                var responseBody = await response.Content.ReadAsStringAsync();
+                using var requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUrl)
+                {
+                    Content = new StringContent(payload, Encoding.UTF8, "application/json")
+                };
+                
+                using var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead);
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    if (response.StatusCode == HttpStatusCode.Forbidden)
-                    {
-                        return StatusCode(500, "Lỗi hệ thống AI: Google AI trả về 403 (Forbidden). Kiểm tra lại API key, project, model và quyền truy cập.");
-                    }
-
-                    return StatusCode((int)response.StatusCode, $"Lỗi từ dịch vụ AI: {responseBody}");
+                    Response.StatusCode = (int)response.StatusCode;
+                    await Response.WriteAsync($"Lỗi AI: {await response.Content.ReadAsStringAsync()}");
+                    return;
                 }
 
-                var answer = ExtractAnswerText(responseBody);
-                return Ok(new { Answer = answer });
+                Response.ContentType = "text/plain; charset=utf-8";
+                using var responseStream = await response.Content.ReadAsStreamAsync();
+                using var reader = new StreamReader(responseStream);
+                
+                await ProcessStreamAsync(reader);
             }
             catch (Exception ex)
             {
-                // Lỗi mạng/DNS khi gọi Google AI: trả 503 để client biết có thể retry.
-                if (IsNetworkError(ex))
-                {
-                    return StatusCode(503, "Không thể kết nối tới dịch vụ AI (lỗi mạng hoặc DNS). Kiểm tra Internet/DNS và thử lại.");
-                }
-
-                if (ex.ToString().Contains("403", StringComparison.OrdinalIgnoreCase))
-                {
-                    return StatusCode(500, "Lỗi hệ thống AI: Google AI trả về 403 (Forbidden). Kiểm tra lại GoogleAI:ApiKey và quyền truy cập model trong Google AI Studio.");
-                }
-
-                return StatusCode(500, $"Lỗi hệ thống AI: {ex.Message}");
+                Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                await Response.WriteAsync($"Lỗi hệ thống: {ex.Message}");
             }
         }
 
-        private static string ExtractAnswerText(string responseBody)
+        private async Task ProcessStreamAsync(StreamReader reader)
         {
-            using var doc = JsonDocument.Parse(responseBody);
+            var buffer = new char[8192];
+            int charCount;
+            var sb = new StringBuilder();
 
-            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+            while ((charCount = await reader.ReadAsync(buffer, 0, buffer.Length)) > 0)
             {
-                var streamText = new StringBuilder();
-                foreach (var chunk in doc.RootElement.EnumerateArray())
+                sb.Append(buffer, 0, charCount);
+                var contentStr = sb.ToString();
+
+                int openBraceIndex;
+                while ((openBraceIndex = contentStr.IndexOf('{')) >= 0)
                 {
-                    streamText.Append(ExtractTextFromObject(chunk));
+                    int braceCount = 0;
+                    int closeBraceIndex = -1;
+
+                    for (int i = openBraceIndex; i < contentStr.Length; i++)
+                    {
+                        if (contentStr[i] == '{') braceCount++;
+                        else if (contentStr[i] == '}')
+                        {
+                            braceCount--;
+                            if (braceCount == 0) { closeBraceIndex = i; break; }
+                        }
+                    }
+
+                    if (closeBraceIndex == -1) break;
+
+                    var jsonChunk = contentStr.Substring(openBraceIndex, closeBraceIndex - openBraceIndex + 1);
+                    await WriteChunkAsync(jsonChunk);
+
+                    contentStr = contentStr.Substring(closeBraceIndex + 1);
+                    sb.Clear();
+                    sb.Append(contentStr);
                 }
-
-                var fullStreamAnswer = streamText.ToString().Trim();
-                return string.IsNullOrWhiteSpace(fullStreamAnswer) ? responseBody : fullStreamAnswer;
             }
+        }
 
-            return ExtractTextFromObject(doc.RootElement);
+        private async Task WriteChunkAsync(string jsonChunk)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(jsonChunk);
+                var text = ExtractTextFromObject(doc.RootElement);
+                if (!string.IsNullOrEmpty(text))
+                {
+                    await Response.WriteAsync(text);
+                    await Response.Body.FlushAsync();
+                }
+            }
+            catch { /* Ignore invalid chunks */ }
         }
 
         private static string ExtractTextFromObject(JsonElement root)
         {
-            if (!root.TryGetProperty("candidates", out var candidates)
-                || candidates.ValueKind != JsonValueKind.Array
-                || candidates.GetArrayLength() == 0)
-            {
+            if (!root.TryGetProperty("candidates", out var candidates) || candidates.ValueKind != JsonValueKind.Array || candidates.GetArrayLength() == 0)
                 return string.Empty;
-            }
 
-            var first = candidates[0];
-            if (!first.TryGetProperty("content", out var content)
-                || !content.TryGetProperty("parts", out var parts)
-                || parts.ValueKind != JsonValueKind.Array)
-            {
+            var content = candidates[0];
+            if (!content.TryGetProperty("content", out var contentNode) || !contentNode.TryGetProperty("parts", out var parts) || parts.ValueKind != JsonValueKind.Array)
                 return string.Empty;
-            }
 
             var builder = new StringBuilder();
             foreach (var part in parts.EnumerateArray())
             {
                 if (part.TryGetProperty("text", out var textNode))
-                {
                     builder.Append(textNode.GetString());
-                }
             }
-
             return builder.ToString();
         }
 
-        private static string BuildDefaultRequestUrl(string apiKey, IConfiguration configuration)
-        {
-            var modelId = configuration["GoogleAI:ModelId"] ?? "gemini-2.5-flash-lite";
-            var endpointBase = configuration["GoogleAI:EndpointBase"]
-                ?? "https://aiplatform.googleapis.com/v1/publishers/google/models";
-            return $"{endpointBase.TrimEnd('/')}/{modelId}:generateContent?key={apiKey}";
-        }
-
-        private static string ResolveRequestUrl(string? requestUrlOverride, string apiKey, IConfiguration configuration)
+        private static string ResolveRequestUrl(string? requestUrlOverride, string apiKey)
         {
             if (string.IsNullOrWhiteSpace(requestUrlOverride))
-            {
-                return BuildDefaultRequestUrl(apiKey, configuration);
-            }
+                throw new InvalidOperationException("REQUEST_URL is not configured in .env");
 
-            var requestUrl = requestUrlOverride.Replace("${API_KEY}", Uri.EscapeDataString(apiKey));
-
-            if (!string.IsNullOrWhiteSpace(apiKey)
-                && !requestUrl.Contains("key=", StringComparison.OrdinalIgnoreCase)
-                && requestUrl.Contains("aiplatform.googleapis.com", StringComparison.OrdinalIgnoreCase))
-            {
-                requestUrl += requestUrl.Contains("?") ? $"&key={Uri.EscapeDataString(apiKey)}" : $"?key={Uri.EscapeDataString(apiKey)}";
-            }
-
-            return requestUrl;
+            return requestUrlOverride.Replace("${API_KEY}", Uri.EscapeDataString(apiKey));
         }
 
         private static bool IsNetworkError(Exception ex)
         {
-            if (ex is SocketException)
-            {
+            if (ex is SocketException || (ex is HttpRequestException httpEx && httpEx.StatusCode == null))
                 return true;
-            }
 
-            if (ex is HttpRequestException httpEx)
-            {
-                // Nếu có mã trạng thái HTTP (vd: 403/429/500 upstream) thì không phải lỗi mạng.
-                if (httpEx.StatusCode is not null)
-                {
-                    return false;
-                }
-
-                // Không có StatusCode thường là lỗi kết nối/DNS/timeout ở tầng network.
-                return true;
-            }
-
-            return ex.InnerException is not null && IsNetworkError(ex.InnerException);
+            return ex.InnerException != null && IsNetworkError(ex.InnerException);
         }
     }
 
