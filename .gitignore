@@ -12,9 +12,11 @@ obj/
 *.userosscache
 *.sln.docstates
 
+
 # IDEs
 .vscode/
 .idea/
+
 
 # Environment and Secrets
 .env
@@ -23,6 +25,10 @@ obj/
 .venv.*
 .github
 appsettings.Development.json
+
+# GCP Service Account Keys
+ntb-text-to-sql-*.json
+*key.json
 
 # Docker
 .dockerignore
