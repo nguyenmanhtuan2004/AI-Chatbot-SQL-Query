@@ -7,3 +7,5 @@ langgraph
 langchain-google-vertexai
 langchain-qdrant
 pyodbc
+langchain-google-genai
+sqlalchemy

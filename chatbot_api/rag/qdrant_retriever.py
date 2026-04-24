@@ -87,7 +87,7 @@ def get_context_from_qdrant(query: str, top_k: int = 3) -> str:
     return final_context.strip()
 
 if __name__ == "__main__":
-    test_query = "Tổng doanh thu của chuyền 2 hôm qua là bao nhiêu?"
+    test_query = "Tôi biết số lượng lỗi nghiêm trọng xảy ra ở chuyền 3 trong tuần này?"
     print(f"🔍 Đang nhúng câu hỏi và tìm kiếm trong Qdrant: '{test_query}'...\n")
     try:
         context = get_context_from_qdrant(test_query)
