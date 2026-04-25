@@ -4,16 +4,16 @@
       "type": "business_rule",
       "domain": "quality",
       "metric_name": "Tỉ lệ lỗi tổng thể (Overall Defect Rate)",
-      "trigger_keywords": ["tỉ lệ lỗi", "defect rate", "phần trăm lỗi", "tỷ lệ hư hỏng"],
+      "trigger_keywords": ["tỉ lệ lỗi", "defect rate", "phần trăm lỗi", "tỷ lệ hư hỏng", "bao nhiêu phần trăm lỗi", "tỉ lệ hàng lỗi"],
       "tables_involved": ["DEFECTS", "PRODUCTIVITY"]
     },
     "content": {
       "description": "Tính toán tỉ lệ phần trăm sản phẩm bị lỗi so với tổng sản lượng thực tế đã sản xuất.",
       "sql_logic": "JOIN DEFECTS d ON p.ID = d.ProductivityID. Công thức: (SUM(d.DefectCount) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100",
-      "conditions": "Thường GROUP BY theo ProductID, LineID, hoặc WorkDate tuỳ thuộc vào yêu cầu nhóm dữ liệu của người dùng.",
+      "conditions": "Thường GROUP BY theo p.ProductID, p.LineID, hoặc ngày tháng. Quan trọng: LineID trong DB có dạng 'LINE_01', 'LINE_02',... (không phải 'L01', 'L02'). Khi người dùng nói 'chuyền 1' thì WHERE p.LineID = 'LINE_01'.",
       "few_shot_example": {
         "user_query": "Tỉ lệ lỗi của chuyền 1 hôm nay là bao nhiêu?",
-        "expected_sql": "SELECT (SUM(d.DefectCount) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100 AS DefectRate FROM PRODUCTIVITY p JOIN DEFECTS d ON p.ID = d.ProductivityID WHERE p.LineID = 'L01' AND CAST(p.StartTime AS DATE) = CAST(GETDATE() AS DATE)"
+        "expected_sql": "SELECT (SUM(d.DefectCount) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100 AS DefectRate FROM PRODUCTIVITY p JOIN DEFECTS d ON p.ID = d.ProductivityID WHERE p.LineID = 'LINE_01' AND CAST(p.StartTime AS DATE) = CAST(GETDATE() AS DATE)"
       }
     }
   },
@@ -22,16 +22,16 @@
       "type": "business_rule",
       "domain": "quality",
       "metric_name": "Tỉ lệ hàng phế phẩm (Scrap Rate)",
-      "trigger_keywords": ["tỉ lệ phế phẩm", "scrap rate", "tỷ lệ hàng rớt", "phần trăm rớt", "tỉ lệ không xử lý được"],
+      "trigger_keywords": ["tỉ lệ phế phẩm", "scrap rate", "tỷ lệ hàng rớt", "phần trăm rớt", "tỉ lệ không xử lý được", "hàng rớt chiếm bao nhiêu"],
       "tables_involved": ["DEFECTS", "PRODUCTIVITY", "DEFECT_CATEGORIES"]
     },
     "content": {
-      "description": "Tính phần trăm sản phẩm bị lỗi KHÔNG thể sửa chữa được (phế phẩm) trên tổng sản lượng. Chỉ đếm các lỗi rớt hẳn.",
+      "description": "Tính phần trăm sản phẩm bị lỗi KHÔNG thể sửa chữa được (phế phẩm) trên tổng sản lượng. Chỉ đếm các lỗi rớt hẳn (IsRepairable = 0).",
       "sql_logic": "JOIN DEFECTS d ON p.ID = d.ProductivityID JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode. Công thức: (SUM(CASE WHEN cat.IsRepairable = 0 THEN d.DefectCount ELSE 0 END) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100",
-      "conditions": "Sử dụng CASE WHEN kết hợp với điều kiện cat.IsRepairable = 0 trong hàm SUM để chỉ lấy các lỗi phế phẩm làm tử số.",
+      "conditions": "Sử dụng CASE WHEN kết hợp với điều kiện cat.IsRepairable = 0 trong hàm SUM để chỉ lấy các lỗi phế phẩm làm tử số. ProductID trong DB có dạng 'SHIRT_BLU', 'TSHIRT_WHT', 'PANTS_KHK',... (không phải tên tiếng Việt).",
       "few_shot_example": {
-        "user_query": "Tỉ lệ phế phẩm của sản phẩm Áo Sơ Mi hôm qua là bao nhiêu?",
-        "expected_sql": "SELECT (SUM(CASE WHEN cat.IsRepairable = 0 THEN d.DefectCount ELSE 0 END) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100 AS ScrapRate FROM PRODUCTIVITY p JOIN DEFECTS d ON p.ID = d.ProductivityID JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode WHERE p.ProductID = 'Ao_So_Mi' AND CAST(p.StartTime AS DATE) = CAST(DATEADD(day, -1, GETDATE()) AS DATE)"
+        "user_query": "Tỉ lệ phế phẩm của sản phẩm Áo Sơ Mi xanh hôm qua là bao nhiêu?",
+        "expected_sql": "SELECT (SUM(CASE WHEN cat.IsRepairable = 0 THEN d.DefectCount ELSE 0 END) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100 AS ScrapRate FROM PRODUCTIVITY p JOIN DEFECTS d ON p.ID = d.ProductivityID JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode WHERE p.ProductID = 'SHIRT_BLU' AND CAST(p.StartTime AS DATE) = CAST(DATEADD(day, -1, GETDATE()) AS DATE)"
       }
     }
   },
@@ -40,16 +40,178 @@
       "type": "business_rule",
       "domain": "quality",
       "metric_name": "Mức độ lỗi nghiêm trọng (Critical Defects)",
-      "trigger_keywords": ["lỗi nghiêm trọng", "critical defects", "lỗi nặng", "nghiêm trọng"],
-      "tables_involved": ["DEFECTS", "DEFECT_CATEGORIES"]
+      "trigger_keywords": ["lỗi nghiêm trọng", "critical defects", "lỗi nặng", "nghiêm trọng", "lỗi mức cao", "lỗi severity cao"],
+      "tables_involved": ["DEFECTS", "DEFECT_CATEGORIES", "PRODUCTIVITY"]
     },
     "content": {
       "description": "Truy vấn và thống kê danh sách hoặc số lượng các lỗi được đánh giá là đặc biệt nghiêm trọng.",
-      "sql_logic": "JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode.",
-      "conditions": "Bắt buộc phải có điều kiện lọc WHERE cat.Severity = 'Cao' hoặc cat.Severity = 'High' (tùy vào dữ liệu thực tế).",
+      "sql_logic": "JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID.",
+      "conditions": "Bắt buộc lọc WHERE cat.Severity = N'Cao'. Dữ liệu thực tế trong DB chỉ có ba mức độ: N'Cao', N'Trung bình', N'Thấp' — KHÔNG có giá trị 'High' hay 'Low'. Bắt buộc dùng tiền tố N'' để so sánh đúng chuỗi Unicode tiếng Việt. LineID dạng 'LINE_01', 'LINE_02',... khi người dùng nói 'chuyền 2' thì WHERE p.LineID = 'LINE_02'.",
       "few_shot_example": {
         "user_query": "Có bao nhiêu lỗi nghiêm trọng xảy ra ở chuyền 2 trong tuần này?",
-        "expected_sql": "SELECT SUM(d.DefectCount) AS TotalCriticalDefects FROM DEFECTS d JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode WHERE (cat.Severity = 'Cao' OR cat.Severity = 'High') AND p.LineID = 'L02' AND p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0)"
+        "expected_sql": "SELECT SUM(d.DefectCount) AS TotalCriticalDefects FROM DEFECTS d JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode WHERE cat.Severity = N'Cao' AND p.LineID = 'LINE_02' AND p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0)"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "quality",
+      "metric_name": "Top loại lỗi phổ biến nhất (Top Defect Types by Frequency)",
+      "trigger_keywords": ["lỗi nhiều nhất", "loại lỗi phổ biến", "top lỗi", "lỗi hay gặp nhất", "lỗi xảy ra nhiều", "defect type ranking", "loại lỗi thường gặp"],
+      "tables_involved": ["DEFECTS", "DEFECT_CATEGORIES", "PRODUCTIVITY"]
+    },
+    "content": {
+      "description": "Xếp hạng các loại lỗi theo tần suất xuất hiện để xác định loại lỗi nào đang gây ra nhiều sản phẩm hỏng nhất. Dùng để ưu tiên khắc phục vấn đề chất lượng.",
+      "sql_logic": "JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID. Công thức: SUM(d.DefectCount). GROUP BY d.DefectTypeCode, cat.DefectName.",
+      "conditions": "Bắt buộc ORDER BY TotalDefects DESC để xếp hạng từ nhiều nhất đến ít nhất. Dùng TOP N để giới hạn số loại lỗi hiển thị nếu người dùng chỉ muốn xem top 5 hoặc top 10.",
+      "few_shot_example": {
+        "user_query": "Top 5 loại lỗi xảy ra nhiều nhất trong tháng này là gì?",
+        "expected_sql": "SELECT TOP 5 cat.DefectName, d.DefectTypeCode, SUM(d.DefectCount) AS TotalDefects FROM DEFECTS d JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID WHERE MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) GROUP BY d.DefectTypeCode, cat.DefectName ORDER BY TotalDefects DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "quality",
+      "metric_name": "So sánh tỉ lệ lỗi giữa các dây chuyền (Defect Rate by Line)",
+      "trigger_keywords": ["chuyền nào lỗi nhiều", "so sánh lỗi giữa các chuyền", "tỉ lệ lỗi theo chuyền", "defect rate by line", "chuyền nào chất lượng kém", "xếp hạng chuyền theo lỗi"],
+      "tables_involved": ["DEFECTS", "PRODUCTIVITY", "PRODUCTION_LINES"]
+    },
+    "content": {
+      "description": "Tính và so sánh tỉ lệ lỗi giữa tất cả các dây chuyền sản xuất. Xếp hạng từ dây chuyền có tỉ lệ lỗi cao nhất xuống thấp nhất để ưu tiên xử lý.",
+      "sql_logic": "JOIN DEFECTS d ON p.ID = d.ProductivityID JOIN PRODUCTION_LINES pl ON p.LineID = pl.LineID. Công thức: (SUM(d.DefectCount) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100. GROUP BY p.LineID, pl.ManagerName, pl.Department.",
+      "conditions": "Bắt buộc GROUP BY p.LineID, pl.ManagerName, pl.Department. Bảng PRODUCTION_LINES KHÔNG có cột LineName, chỉ có LineID, ManagerName, Department. Nên ORDER BY DefectRate DESC để hiện chuyền lỗi nhiều nhất trên đầu danh sách.",
+      "few_shot_example": {
+        "user_query": "Chuyền nào đang có tỉ lệ lỗi cao nhất trong tuần này?",
+        "expected_sql": "SELECT p.LineID, pl.ManagerName, pl.Department, (SUM(d.DefectCount) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100 AS DefectRate FROM PRODUCTIVITY p JOIN DEFECTS d ON p.ID = d.ProductivityID JOIN PRODUCTION_LINES pl ON p.LineID = pl.LineID WHERE p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0) GROUP BY p.LineID, pl.ManagerName, pl.Department ORDER BY DefectRate DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "quality",
+      "metric_name": "Tỉ lệ lỗi theo ca làm việc (Defect Rate by Shift)",
+      "trigger_keywords": ["lỗi theo ca", "ca nào lỗi nhiều", "tỉ lệ lỗi theo ca", "defect rate by shift", "ca sáng lỗi nhiều hơn ca chiều", "so sánh lỗi giữa các ca"],
+      "tables_involved": ["DEFECTS", "PRODUCTIVITY", "SHIFTS"]
+    },
+    "content": {
+      "description": "Phân tích tỉ lệ lỗi theo từng ca làm việc để xác định ca nào đang có vấn đề về chất lượng. Thường dùng để điều tra nguyên nhân liên quan đến nhân sự hoặc điều kiện làm việc theo giờ.",
+      "sql_logic": "JOIN DEFECTS d ON p.ID = d.ProductivityID JOIN SHIFTS s ON p.ShiftID = s.ShiftID. Công thức: (SUM(d.DefectCount) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100. GROUP BY p.ShiftID, s.ShiftName.",
+      "conditions": "Bắt buộc GROUP BY p.ShiftID và s.ShiftName. Tên ca trong DB: N'Ca Sáng' (ShiftID=1), N'Ca Chiều' (ShiftID=2), N'Ca Đêm' (ShiftID=3). Dùng N'' khi lọc tên ca. Có thể lọc thêm theo LineID hoặc khoảng thời gian.",
+      "few_shot_example": {
+        "user_query": "Ca nào trong hôm nay có tỉ lệ lỗi cao nhất?",
+        "expected_sql": "SELECT s.ShiftName, (SUM(d.DefectCount) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100 AS DefectRate FROM PRODUCTIVITY p JOIN DEFECTS d ON p.ID = d.ProductivityID JOIN SHIFTS s ON p.ShiftID = s.ShiftID WHERE CAST(p.StartTime AS DATE) = CAST(GETDATE() AS DATE) GROUP BY p.ShiftID, s.ShiftName ORDER BY DefectRate DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "quality",
+      "metric_name": "Xu hướng lỗi theo ngày (Daily Defect Trend)",
+      "trigger_keywords": ["xu hướng lỗi", "lỗi tăng hay giảm", "biến động lỗi", "defect trend", "lỗi theo ngày", "lỗi qua các ngày", "đồ thị lỗi"],
+      "tables_involved": ["DEFECTS", "PRODUCTIVITY"]
+    },
+    "content": {
+      "description": "Tổng hợp số lượng lỗi hoặc tỉ lệ lỗi theo từng ngày trong một khoảng thời gian để theo dõi xu hướng chất lượng tăng hay giảm. Dùng để vẽ biểu đồ xu hướng (trend chart).",
+      "sql_logic": "JOIN DEFECTS d ON p.ID = d.ProductivityID. Công thức: SUM(d.DefectCount) và (SUM(d.DefectCount) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100. GROUP BY CAST(p.StartTime AS DATE).",
+      "conditions": "Bắt buộc GROUP BY CAST(p.StartTime AS DATE) để nhóm theo ngày. ORDER BY WorkDate ASC để dữ liệu hiển thị xuôi theo thời gian. LineID có dạng 'LINE_01', 'LINE_02',... khi người dùng nói 'chuyền 3' thì WHERE p.LineID = 'LINE_03'.",
+      "few_shot_example": {
+        "user_query": "Tỉ lệ lỗi của chuyền 3 trong 7 ngày qua biến động như thế nào?",
+        "expected_sql": "SELECT CAST(p.StartTime AS DATE) AS WorkDate, SUM(d.DefectCount) AS TotalDefects, (SUM(d.DefectCount) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100 AS DefectRate FROM PRODUCTIVITY p JOIN DEFECTS d ON p.ID = d.ProductivityID WHERE p.LineID = 'LINE_03' AND p.StartTime >= DATEADD(day, -7, CAST(GETDATE() AS DATE)) GROUP BY CAST(p.StartTime AS DATE) ORDER BY WorkDate ASC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "quality",
+      "metric_name": "First Pass Yield - FPY (Tỉ lệ hàng đạt ngay lần đầu)",
+      "trigger_keywords": ["FPY", "first pass yield", "tỉ lệ đạt lần đầu", "hàng đạt ngay", "không cần sửa", "tỉ lệ hàng tốt", "hàng đạt tiêu chuẩn ngay", "tỉ lệ pass"],
+      "tables_involved": ["DEFECTS", "PRODUCTIVITY"]
+    },
+    "content": {
+      "description": "Tính tỉ lệ sản phẩm đạt chất lượng ngay lần sản xuất đầu tiên mà không cần sửa chữa hay bị loại (First Pass Yield). Công thức: FPY = (Tổng sản lượng - Tổng số lỗi) / Tổng sản lượng * 100.",
+      "sql_logic": "LEFT JOIN DEFECTS d ON p.ID = d.ProductivityID. Công thức: (SUM(p.Quantity) - COALESCE(SUM(d.DefectCount), 0)) * 100.0 / NULLIF(SUM(p.Quantity), 0) AS FPY. GROUP BY tùy theo câu hỏi.",
+      "conditions": "Dùng LEFT JOIN để giữ các bản ghi PRODUCTIVITY không có lỗi (DEFECTS = NULL). Dùng COALESCE(SUM(d.DefectCount), 0) để xử lý NULL khi không có lỗi. FPY lý tưởng là gần 100%. Giá trị FPY thấp nghĩa là chất lượng kém.",
+      "few_shot_example": {
+        "user_query": "Tỉ lệ hàng đạt ngay lần đầu (FPY) của toàn nhà máy hôm nay là bao nhiêu?",
+        "expected_sql": "SELECT (SUM(p.Quantity) - COALESCE(SUM(d.DefectCount), 0)) * 100.0 / NULLIF(SUM(p.Quantity), 0) AS FPY, SUM(p.Quantity) AS TotalQuantity, COALESCE(SUM(d.DefectCount), 0) AS TotalDefects FROM PRODUCTIVITY p LEFT JOIN DEFECTS d ON p.ID = d.ProductivityID WHERE CAST(p.StartTime AS DATE) = CAST(GETDATE() AS DATE)"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "quality",
+      "metric_name": "Tỉ lệ lỗi theo từng sản phẩm (Defect Rate by Product)",
+      "trigger_keywords": ["sản phẩm nào lỗi nhiều", "lỗi theo sản phẩm", "defect rate by product", "mã hàng nào lỗi cao", "sản phẩm chất lượng kém", "tỉ lệ lỗi sản phẩm", "loại hàng nào hay bị lỗi"],
+      "tables_involved": ["DEFECTS", "PRODUCTIVITY", "PRODUCTS"]
+    },
+    "content": {
+      "description": "Tính và so sánh tỉ lệ lỗi theo từng loại sản phẩm để xác định mã hàng nào đang có vấn đề về chất lượng nghiêm trọng nhất.",
+      "sql_logic": "JOIN DEFECTS d ON p.ID = d.ProductivityID JOIN PRODUCTS prd ON p.ProductID = prd.ProductID. Công thức: (SUM(d.DefectCount) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100. GROUP BY p.ProductID, prd.ProductName.",
+      "conditions": "Bắt buộc GROUP BY p.ProductID, prd.ProductName. ProductID trong DB: 'TSHIRT_WHT', 'PANTS_KHK', 'SHIRT_BLU', 'JEAN_BLK', 'DRESS_FLR', 'POLO_RED', 'JACKET_WND', 'SHORT_NVY', 'SKIRT_BRN', 'HOODIE_GRY', 'CAP_BLK', 'SOCK_SET', 'JACKET_HVY'. ORDER BY DefectRate DESC để xếp hạng từ lỗi nhiều nhất.",
+      "few_shot_example": {
+        "user_query": "Sản phẩm nào đang có tỉ lệ lỗi cao nhất trong tháng này?",
+        "expected_sql": "SELECT p.ProductID, prd.ProductName, SUM(p.Quantity) AS TotalQuantity, SUM(d.DefectCount) AS TotalDefects, (SUM(d.DefectCount) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100 AS DefectRate FROM PRODUCTIVITY p JOIN DEFECTS d ON p.ID = d.ProductivityID JOIN PRODUCTS prd ON p.ProductID = prd.ProductID WHERE MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) GROUP BY p.ProductID, prd.ProductName ORDER BY DefectRate DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "quality",
+      "metric_name": "Phân bố lỗi theo mức độ nghiêm trọng (Defect Distribution by Severity)",
+      "trigger_keywords": ["lỗi cao trung bình thấp", "phân loại lỗi theo mức độ", "severity distribution", "lỗi mức cao bao nhiêu", "phân bố mức độ lỗi", "bao nhiêu lỗi cao trung bình thấp", "thống kê theo severity"],
+      "tables_involved": ["DEFECTS", "DEFECT_CATEGORIES", "PRODUCTIVITY"]
+    },
+    "content": {
+      "description": "Thống kê và so sánh số lượng lỗi theo ba mức độ nghiêm trọng: Cao, Trung bình, Thấp. Dùng để đánh giá mức độ rủi ro chất lượng tổng thể của nhà máy.",
+      "sql_logic": "JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID. Công thức: SUM(d.DefectCount). GROUP BY cat.Severity.",
+      "conditions": "Bắt buộc GROUP BY cat.Severity. Ba mức độ trong DB: N'Cao', N'Trung bình', N'Thấp'. Không có giá trị 'High', 'Medium', 'Low'. Dùng N'' khi lọc tên mức độ. ORDER BY CASE WHEN cat.Severity = N'Cao' THEN 1 WHEN cat.Severity = N'Trung bình' THEN 2 ELSE 3 END để hiện theo thứ tự từ nghiêm trọng nhất.",
+      "few_shot_example": {
+        "user_query": "Phân bố lỗi theo mức độ nghiêm trọng trong tuần này là như thế nào?",
+        "expected_sql": "SELECT cat.Severity, SUM(d.DefectCount) AS TotalDefects, COUNT(DISTINCT d.DefectTypeCode) AS DefectTypeCount FROM DEFECTS d JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID WHERE p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0) GROUP BY cat.Severity ORDER BY CASE WHEN cat.Severity = N'Cao' THEN 1 WHEN cat.Severity = N'Trung bình' THEN 2 ELSE 3 END"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "quality",
+      "metric_name": "Chuyền nào có chất lượng tốt nhất (Best Quality Line)",
+      "trigger_keywords": ["chuyền nào ít lỗi nhất", "chuyền chất lượng tốt nhất", "best quality line", "chuyền nào làm ít hỏng nhất", "chuyền tốt nhất về chất lượng", "chuyền có tỉ lệ lỗi thấp nhất"],
+      "tables_involved": ["DEFECTS", "PRODUCTIVITY", "PRODUCTION_LINES"]
+    },
+    "content": {
+      "description": "Xếp hạng các dây chuyền từ có tỉ lệ lỗi thấp nhất đến cao nhất để nhận diện chuyền đang có hiệu suất chất lượng tốt nhất. Dùng để học hỏi kinh nghiệm thực hành tốt (best practice) giữa các chuyền.",
+      "sql_logic": "JOIN DEFECTS d ON p.ID = d.ProductivityID JOIN PRODUCTION_LINES pl ON p.LineID = pl.LineID. Công thức: (SUM(d.DefectCount) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100. GROUP BY p.LineID, pl.ManagerName, pl.Department.",
+      "conditions": "Bắt buộc GROUP BY p.LineID, pl.ManagerName, pl.Department. Bảng PRODUCTION_LINES KHÔNG có cột LineName. ORDER BY DefectRate ASC để hiện chuyền ít lỗi nhất trên đầu. Có thể dùng TOP 3 để chỉ lấy top 3 chuyền tốt nhất.",
+      "few_shot_example": {
+        "user_query": "Top 3 chuyền có chất lượng tốt nhất (ít lỗi nhất) trong tháng này là những chuyền nào?",
+        "expected_sql": "SELECT TOP 3 p.LineID, pl.ManagerName, pl.Department, SUM(p.Quantity) AS TotalQuantity, SUM(d.DefectCount) AS TotalDefects, (SUM(d.DefectCount) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100 AS DefectRate FROM PRODUCTIVITY p JOIN DEFECTS d ON p.ID = d.ProductivityID JOIN PRODUCTION_LINES pl ON p.LineID = pl.LineID WHERE MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) GROUP BY p.LineID, pl.ManagerName, pl.Department ORDER BY DefectRate ASC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "quality",
+      "metric_name": "Chi tiết lỗi của một lần sản xuất cụ thể (Defects in a Productivity Record)",
+      "trigger_keywords": ["lỗi trong ca sản xuất", "lỗi của lần sản xuất", "chi tiết lỗi của productivity", "lỗi trong một ca cụ thể", "xem lỗi của chuyền theo ca", "defects in session", "lỗi trong buổi sản xuất"],
+      "tables_involved": ["DEFECTS", "PRODUCTIVITY", "DEFECT_CATEGORIES", "PRODUCTS"]
+    },
+    "content": {
+      "description": "Tra cứu toàn bộ lỗi phát sinh trong một lần sản xuất cụ thể (một bản ghi PRODUCTIVITY) bao gồm loại lỗi, số lượng, mức độ nghiêm trọng và khả năng sửa chữa.",
+      "sql_logic": "JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID JOIN PRODUCTS prd ON p.ProductID = prd.ProductID. SELECT d.DefectTypeCode, cat.DefectName, cat.Severity, cat.IsRepairable, d.DefectCount.",
+      "conditions": "Lọc theo d.ProductivityID = ID cụ thể nếu người dùng biết ID, hoặc lọc theo p.LineID + p.ShiftID + ngày nếu người dùng mô tả ca làm việc. IsRepairable trong DB là bit (0 hoặc 1). Hiển thị cả hai: lỗi sửa được và lỗi phế phẩm.",
+      "few_shot_example": {
+        "user_query": "Cho tôi xem tất cả các lỗi xảy ra ở chuyền 1 trong ca sáng hôm nay.",
+        "expected_sql": "SELECT cat.DefectName, cat.Severity, cat.IsRepairable, d.DefectCount, prd.ProductName FROM DEFECTS d JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID JOIN PRODUCTS prd ON p.ProductID = prd.ProductID WHERE p.LineID = 'LINE_01' AND p.ShiftID = 1 AND CAST(p.StartTime AS DATE) = CAST(GETDATE() AS DATE) ORDER BY d.DefectCount DESC"
       }
     }
   }

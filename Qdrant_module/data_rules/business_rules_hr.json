@@ -3,17 +3,17 @@
     "metadata": {
       "type": "business_rule",
       "domain": "hr",
-      "metric_name": "Tham chiếu người làm việc (Worker lookup)",
-      "trigger_keywords": ["ai làm", "nhân viên nào", "danh sách công nhân", "worker", "nhân sự", "ai phụ trách"],
+      "metric_name": "Tham chiếu người làm việc tại chuyền (Worker Lookup by Line)",
+      "trigger_keywords": ["ai làm", "nhân viên nào", "danh sách công nhân", "worker", "nhân sự", "ai phụ trách", "người làm ở chuyền", "công nhân chuyền nào"],
       "tables_involved": ["WORK_ASSIGNMENTS", "EMPLOYEES", "PRODUCTION_LINES"]
     },
     "content": {
       "description": "Truy vấn danh sách nhân viên hoặc người làm việc tại một dây chuyền sản xuất cụ thể trong khoảng thời gian nhất định.",
-      "sql_logic": "JOIN WORK_ASSIGNMENTS wa JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID JOIN PRODUCTION_LINES pl ON wa.LineID = pl.LineID.",
-      "conditions": "Sử dụng điều kiện lọc thời gian lên cột WorkDate của bảng WORK_ASSIGNMENTS và mã/tên dây chuyền dựa trên câu hỏi.",
+      "sql_logic": "JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID JOIN PRODUCTION_LINES pl ON wa.LineID = pl.LineID.",
+      "conditions": "Lọc theo wa.LineID hoặc pl.LineID. Quan trọng: LineID trong DB có dạng 'LINE_01', 'LINE_02',... (không phải 'L01', 'L02'). Khi người dùng nói 'chuyền 1' thì WHERE wa.LineID = 'LINE_01'. Lọc thời gian theo wa.WorkDate.",
       "few_shot_example": {
         "user_query": "Ai là người làm ở chuyền 1 hôm nay?",
-        "expected_sql": "SELECT e.EmployeeName, e.Position FROM WORK_ASSIGNMENTS wa JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID JOIN PRODUCTION_LINES pl ON wa.LineID = pl.LineID WHERE pl.LineID = 'L01' AND wa.WorkDate = CAST(GETDATE() AS DATE)"
+        "expected_sql": "SELECT e.EmployeeName, e.Position FROM WORK_ASSIGNMENTS wa JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID WHERE wa.LineID = 'LINE_01' AND wa.WorkDate = CAST(GETDATE() AS DATE)"
       }
     }
   },
@@ -22,16 +22,178 @@
       "type": "business_rule",
       "domain": "hr",
       "metric_name": "Năng suất theo người quản lý (Manager Performance)",
-      "trigger_keywords": ["năng suất của quản lý", "hiệu quả giám đốc", "sản lượng quản trị", "manager performance", "hiệu suất chuyền trưởng"],
+      "trigger_keywords": ["năng suất của quản lý", "hiệu quả giám đốc", "sản lượng quản trị", "manager performance", "hiệu suất chuyền trưởng", "quản đốc nào hiệu quả", "năng suất theo quản lý"],
       "tables_involved": ["PRODUCTIVITY", "PRODUCTION_LINES"]
     },
     "content": {
       "description": "Đánh giá, so sánh và thống kê tổng năng suất (sản lượng làm ra) của các chuyền được đặt dưới quyền giám sát của một người quản lý (Manager).",
-      "sql_logic": "JOIN PRODUCTIVITY p ON p.LineID = pl.LineID (với bảng PRODUCTION_LINES). Công thức: SUM(p.Quantity)",
-      "conditions": "Bắt buộc GROUP BY pl.ManagerName. Có thể thêm điều kiện tính thời gian trên bảng PRODUCTIVITY.",
+      "sql_logic": "JOIN PRODUCTION_LINES pl ON p.LineID = pl.LineID. Công thức: SUM(p.Quantity). GROUP BY pl.ManagerName.",
+      "conditions": "Bắt buộc GROUP BY pl.ManagerName. Dùng N'' khi so sánh tên tiếng Việt để hỗ trợ Unicode, ví dụ: pl.ManagerName = N'Nguyễn Văn A'. ManagerName trong DB: N'Nguyễn Văn A' (LINE_01), N'Trần Thị B' (LINE_02), N'Lê Văn C' (LINE_03),... ",
       "few_shot_example": {
         "user_query": "Năng suất tổng của quản đốc Nguyễn Văn A tuần này là bao nhiêu?",
         "expected_sql": "SELECT pl.ManagerName, SUM(p.Quantity) AS TotalManagerProductivity FROM PRODUCTIVITY p JOIN PRODUCTION_LINES pl ON p.LineID = pl.LineID WHERE pl.ManagerName = N'Nguyễn Văn A' AND p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0) GROUP BY pl.ManagerName"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "hr",
+      "metric_name": "Số lượng nhân viên trên mỗi dây chuyền (Headcount by Line)",
+      "trigger_keywords": ["bao nhiêu người", "số lượng nhân viên", "headcount", "số công nhân", "có mấy người làm", "số nhân sự mỗi chuyền", "bao nhiêu nhân viên trên chuyền"],
+      "tables_involved": ["WORK_ASSIGNMENTS", "PRODUCTION_LINES"]
+    },
+    "content": {
+      "description": "Đếm số lượng nhân viên được phân công làm việc trên từng dây chuyền trong một ngày hoặc khoảng thời gian cụ thể. Dùng để kiểm tra bố trí nhân lực có đầy đủ hay không.",
+      "sql_logic": "JOIN PRODUCTION_LINES pl ON wa.LineID = pl.LineID. Công thức: COUNT(DISTINCT wa.EmployeeID). GROUP BY wa.LineID, pl.ManagerName, pl.Department.",
+      "conditions": "Dùng COUNT(DISTINCT wa.EmployeeID) để tránh đếm trùng nếu nhân viên được phân công nhiều ca trong cùng một ngày. Bảng PRODUCTION_LINES KHÔNG có cột LineName, chỉ có LineID, ManagerName, Department. Lọc theo WorkDate để lấy số liệu ngày cụ thể.",
+      "few_shot_example": {
+        "user_query": "Hôm nay mỗi chuyền có bao nhiêu người làm việc?",
+        "expected_sql": "SELECT wa.LineID, pl.ManagerName, pl.Department, COUNT(DISTINCT wa.EmployeeID) AS HeadCount FROM WORK_ASSIGNMENTS wa JOIN PRODUCTION_LINES pl ON wa.LineID = pl.LineID WHERE wa.WorkDate = CAST(GETDATE() AS DATE) GROUP BY wa.LineID, pl.ManagerName, pl.Department ORDER BY HeadCount DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "hr",
+      "metric_name": "Lịch phân công của một nhân viên cụ thể (Employee Schedule Lookup)",
+      "trigger_keywords": ["lịch làm việc của", "nhân viên này làm chuyền nào", "ca nào của", "lịch phân công", "employee schedule", "xem lịch nhân viên", "nhân viên làm ở đâu"],
+      "tables_involved": ["WORK_ASSIGNMENTS", "PRODUCTION_LINES", "SHIFTS", "EMPLOYEES"]
+    },
+    "content": {
+      "description": "Tra cứu lịch phân công chi tiết của một nhân viên cụ thể: làm ở chuyền nào, ca nào, ngày nào trong một khoảng thời gian.",
+      "sql_logic": "JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID JOIN SHIFTS s ON wa.ShiftID = s.ShiftID. Bảng PRODUCTION_LINES KHÔNG có cột LineName, dùng wa.LineID để hiển thị chuyền.",
+      "conditions": "Lọc theo e.EmployeeName (dùng N'' với tên tiếng Việt) hoặc e.EmployeeID. Tên nhân viên trong DB: N'Nguyễn Văn A', N'Trần Thị B', N'Lê Văn C',... Thêm điều kiện lọc khoảng thời gian WorkDate. ORDER BY wa.WorkDate ASC để hiện lịch theo thứ tự ngày.",
+      "few_shot_example": {
+        "user_query": "Lịch làm việc của nhân viên Trần Thị B trong tuần này là gì?",
+        "expected_sql": "SELECT wa.WorkDate, wa.LineID, s.ShiftName FROM WORK_ASSIGNMENTS wa JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID JOIN SHIFTS s ON wa.ShiftID = s.ShiftID WHERE e.EmployeeName = N'Trần Thị B' AND wa.WorkDate >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0) AND wa.WorkDate < DATEADD(week, DATEDIFF(week, 0, GETDATE()) + 1, 0) ORDER BY wa.WorkDate ASC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "hr",
+      "metric_name": "Danh sách nhân viên theo ca hôm nay (Today's Shift Assignment)",
+      "trigger_keywords": ["ca sáng hôm nay ai làm", "ai làm ca chiều", "nhân viên ca đêm", "danh sách ca", "ai đang làm ca này", "phân công ca hôm nay", "shift assignment today"],
+      "tables_involved": ["WORK_ASSIGNMENTS", "EMPLOYEES", "SHIFTS"]
+    },
+    "content": {
+      "description": "Lấy danh sách nhân viên đang được phân công làm việc trong một ca cụ thể (sáng/chiều/đêm) vào hôm nay, bao gồm thông tin chuyền và tên ca.",
+      "sql_logic": "JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID JOIN SHIFTS s ON wa.ShiftID = s.ShiftID.",
+      "conditions": "Bắt buộc lọc wa.WorkDate = CAST(GETDATE() AS DATE). Tên ca trong DB: N'Ca Sáng' (ShiftID=1), N'Ca Chiều' (ShiftID=2), N'Ca Đêm' (ShiftID=3), N'Ca Hành chính' (ShiftID=4). Lọc theo s.ShiftName = N'Ca Sáng' khi người dùng hỏi ca sáng. Dùng N'' với tên tiếng Việt.",
+      "few_shot_example": {
+        "user_query": "Ca sáng hôm nay có những ai làm việc và ở chuyền nào?",
+        "expected_sql": "SELECT e.EmployeeName, e.Position, wa.LineID, s.ShiftName FROM WORK_ASSIGNMENTS wa JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID JOIN SHIFTS s ON wa.ShiftID = s.ShiftID WHERE wa.WorkDate = CAST(GETDATE() AS DATE) AND s.ShiftName = N'Ca Sáng' ORDER BY wa.LineID, e.EmployeeName"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "hr",
+      "metric_name": "Danh sách nhân viên theo chức vụ (Employee List by Position)",
+      "trigger_keywords": ["danh sách tổ trưởng", "có mấy quản lý", "nhân viên theo chức vụ", "employee by position", "chức vụ nào có mấy người", "danh sách công nhân", "ai là tổ trưởng"],
+      "tables_involved": ["EMPLOYEES"]
+    },
+    "content": {
+      "description": "Tra cứu hoặc đếm số lượng nhân viên theo chức vụ (Position). Dùng để thống kê cơ cấu nhân sự hoặc tìm danh sách người có chức vụ cụ thể.",
+      "sql_logic": "SELECT trực tiếp từ bảng EMPLOYEES. Công thức đếm: COUNT(*). GROUP BY e.Position.",
+      "conditions": "Các chức vụ có trong DB: N'Tổ trưởng', N'Thợ may', N'KCS', N'Thợ cắt', N'Thợ ủi', N'Bảo trì máy', N'Nhân viên đóng gói', N'Thủ kho', N'Quản đốc', N'Thợ vắt sổ'. Bắt buộc dùng N'' khi so sánh tên chức vụ tiếng Việt. Nếu muốn đếm: GROUP BY e.Position và SELECT COUNT(*). Nếu muốn xem danh sách: WHERE e.Position = N'...'.",
+      "few_shot_example": {
+        "user_query": "Cho tôi danh sách tất cả các tổ trưởng trong nhà máy.",
+        "expected_sql": "SELECT e.EmployeeID, e.EmployeeName, e.Position FROM EMPLOYEES e WHERE e.Position = N'Tổ trưởng' ORDER BY e.EmployeeName ASC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "hr",
+      "metric_name": "Năng suất cá nhân của một nhân viên (Individual Employee Productivity)",
+      "trigger_keywords": ["năng suất nhân viên", "nhân viên sản xuất bao nhiêu", "sản lượng của nhân viên", "individual productivity", "năng suất cá nhân", "nhân viên nào làm nhiều nhất", "xem sản lượng nhân viên"],
+      "tables_involved": ["WORK_ASSIGNMENTS", "PRODUCTIVITY", "EMPLOYEES"]
+    },
+    "content": {
+      "description": "Tính tổng sản lượng thực tế được ghi nhận trong các ca mà một nhân viên đã được phân công làm việc. Kết nối WORK_ASSIGNMENTS (phân công nhân viên theo ca và chuyền) với PRODUCTIVITY (sản lượng của chuyền đó trong ca đó).",
+      "sql_logic": "JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID JOIN PRODUCTIVITY p ON wa.LineID = p.LineID AND wa.ShiftID = p.ShiftID AND wa.WorkDate = CAST(p.StartTime AS DATE). Công thức: SUM(p.Quantity). GROUP BY e.EmployeeID, e.EmployeeName.",
+      "conditions": "JOIN giữa WORK_ASSIGNMENTS và PRODUCTIVITY phải dùng cả 3 điều kiện: LineID, ShiftID, và WorkDate để tránh nhầm ca/chuyền. Dùng N'' khi lọc tên tiếng Việt.",
+      "few_shot_example": {
+        "user_query": "Sản lượng của nhân viên Nguyễn Văn A trong tuần này là bao nhiêu?",
+        "expected_sql": "SELECT e.EmployeeName, e.Position, SUM(p.Quantity) AS TotalQuantity FROM WORK_ASSIGNMENTS wa JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID JOIN PRODUCTIVITY p ON wa.LineID = p.LineID AND wa.ShiftID = p.ShiftID AND wa.WorkDate = CAST(p.StartTime AS DATE) WHERE e.EmployeeName = N'Nguyễn Văn A' AND wa.WorkDate >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0) GROUP BY e.EmployeeID, e.EmployeeName, e.Position"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "hr",
+      "metric_name": "Xếp hạng nhân viên theo số ngày làm việc (Employee Work Days Ranking)",
+      "trigger_keywords": ["nhân viên làm nhiều ngày nhất", "số ngày làm việc", "ai làm nhiều nhất", "work days count", "nhân viên chuyên cần", "xếp hạng theo ngày công", "ngày công nhân viên"],
+      "tables_involved": ["WORK_ASSIGNMENTS", "EMPLOYEES"]
+    },
+    "content": {
+      "description": "Đếm số ngày làm việc (số ngày có mặt theo phân công) của từng nhân viên trong một khoảng thời gian. Dùng để đánh giá chuyên cần hoặc theo dõi ngày công.",
+      "sql_logic": "JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID. Công thức: COUNT(DISTINCT wa.WorkDate). GROUP BY wa.EmployeeID, e.EmployeeName, e.Position.",
+      "conditions": "Dùng COUNT(DISTINCT wa.WorkDate) để tránh đếm trùng nếu nhân viên có nhiều ca trong cùng một ngày. Lọc theo khoảng thời gian WorkDate. ORDER BY WorkDays DESC để xếp hạng nhân viên làm nhiều ngày nhất.",
+      "few_shot_example": {
+        "user_query": "Trong tháng này, ai là nhân viên đi làm nhiều ngày nhất?",
+        "expected_sql": "SELECT TOP 5 e.EmployeeName, e.Position, COUNT(DISTINCT wa.WorkDate) AS WorkDays FROM WORK_ASSIGNMENTS wa JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID WHERE MONTH(wa.WorkDate) = MONTH(GETDATE()) AND YEAR(wa.WorkDate) = YEAR(GETDATE()) GROUP BY wa.EmployeeID, e.EmployeeName, e.Position ORDER BY WorkDays DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "hr",
+      "metric_name": "Nhân viên làm ở nhiều chuyền (Multi-line Assignment Detection)",
+      "trigger_keywords": ["nhân viên làm nhiều chuyền", "nhân viên điều chuyển", "ai làm ở nhiều chuyền", "multi-line employee", "nhân viên linh hoạt", "nhân viên được điều động", "ai từng làm ở các chuyền khác nhau"],
+      "tables_involved": ["WORK_ASSIGNMENTS", "EMPLOYEES"]
+    },
+    "content": {
+      "description": "Tìm những nhân viên đã được phân công làm việc ở nhiều hơn một dây chuyền sản xuất trong một khoảng thời gian. Dùng để phát hiện nhân viên linh hoạt hoặc kiểm tra việc điều phối nhân lực bất thường.",
+      "sql_logic": "JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID. Đếm chuyền: COUNT(DISTINCT wa.LineID). GROUP BY wa.EmployeeID, e.EmployeeName, e.Position. HAVING COUNT(DISTINCT wa.LineID) > 1.",
+      "conditions": "Bắt buộc dùng HAVING COUNT(DISTINCT wa.LineID) > 1 để chỉ lấy nhân viên đã làm ở hơn 1 chuyền. Lọc theo khoảng thời gian WorkDate nếu người dùng chỉ định.",
+      "few_shot_example": {
+        "user_query": "Nhân viên nào đã làm việc ở nhiều hơn một chuyền trong tháng này?",
+        "expected_sql": "SELECT e.EmployeeName, e.Position, COUNT(DISTINCT wa.LineID) AS LineCount, STRING_AGG(DISTINCT wa.LineID, ', ') AS Lines FROM WORK_ASSIGNMENTS wa JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID WHERE MONTH(wa.WorkDate) = MONTH(GETDATE()) AND YEAR(wa.WorkDate) = YEAR(GETDATE()) GROUP BY wa.EmployeeID, e.EmployeeName, e.Position HAVING COUNT(DISTINCT wa.LineID) > 1 ORDER BY LineCount DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "hr",
+      "metric_name": "Thống kê nhân viên theo bộ phận (Headcount by Department)",
+      "trigger_keywords": ["nhân viên theo xưởng", "bao nhiêu người ở xưởng", "headcount by department", "số nhân sự theo bộ phận", "xưởng nào nhiều người", "thống kê nhân viên theo phòng", "bộ phận nào có nhiều nhân viên nhất"],
+      "tables_involved": ["WORK_ASSIGNMENTS", "PRODUCTION_LINES"]
+    },
+    "content": {
+      "description": "Đếm số lượng nhân viên được phân công làm việc theo từng bộ phận (Department) trong một ngày hoặc khoảng thời gian. Dùng để kiểm tra phân bổ nhân lực giữa các xưởng.",
+      "sql_logic": "JOIN PRODUCTION_LINES pl ON wa.LineID = pl.LineID. Công thức: COUNT(DISTINCT wa.EmployeeID). GROUP BY pl.Department.",
+      "conditions": "Bắt buộc GROUP BY pl.Department. Các Department trong DB: N'Xưởng 1', N'Xưởng 2', N'Xưởng 3', N'Hoàn thiện', N'Đóng gói', N'Kho'. Lọc theo WorkDate nếu người dùng hỏi theo ngày cụ thể. ORDER BY HeadCount DESC.",
+      "few_shot_example": {
+        "user_query": "Mỗi xưởng hôm nay có bao nhiêu nhân viên được phân công?",
+        "expected_sql": "SELECT pl.Department, COUNT(DISTINCT wa.EmployeeID) AS HeadCount FROM WORK_ASSIGNMENTS wa JOIN PRODUCTION_LINES pl ON wa.LineID = pl.LineID WHERE wa.WorkDate = CAST(GETDATE() AS DATE) GROUP BY pl.Department ORDER BY HeadCount DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "hr",
+      "metric_name": "Nhân viên làm ca tăng ca / cuối tuần (Overtime & Weekend Shift Assignment)",
+      "trigger_keywords": ["tăng ca", "ai làm tăng ca", "nhân viên làm cuối tuần", "overtime", "ca tăng ca sáng", "ca tăng ca tối", "ca cuối tuần", "nhân viên nào làm ca phụ"],
+      "tables_involved": ["WORK_ASSIGNMENTS", "EMPLOYEES", "SHIFTS"]
+    },
+    "content": {
+      "description": "Tìm danh sách nhân viên đang làm việc trong các ca tăng ca hoặc ca cuối tuần. Dùng để quản lý chi phí nhân công ngoài giờ và đảm bảo tuân thủ quy định lao động.",
+      "sql_logic": "JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID JOIN SHIFTS s ON wa.ShiftID = s.ShiftID.",
+      "conditions": "Ca tăng ca trong DB: ShiftID 5 = N'Tăng Ca Sáng', ShiftID 6 = N'Tăng Ca Tối', ShiftID 7 = N'Cuối tuần 1', ShiftID 8 = N'Cuối tuần 2', ShiftID 9 = N'Ca Lễ Sáng', ShiftID 10 = N'Ca Lễ Chiều'. Lọc bằng WHERE s.ShiftID IN (5, 6, 7, 8, 9, 10) hoặc lọc theo tên ca. Lọc thêm WorkDate nếu cần.",
+      "few_shot_example": {
+        "user_query": "Ai đang làm ca tăng ca hoặc ca cuối tuần trong tuần này?",
+        "expected_sql": "SELECT e.EmployeeName, e.Position, wa.LineID, s.ShiftName, wa.WorkDate FROM WORK_ASSIGNMENTS wa JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID JOIN SHIFTS s ON wa.ShiftID = s.ShiftID WHERE wa.ShiftID IN (5, 6, 7, 8, 9, 10) AND wa.WorkDate >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0) AND wa.WorkDate < DATEADD(week, DATEDIFF(week, 0, GETDATE()) + 1, 0) ORDER BY wa.WorkDate, wa.LineID"
       }
     }
   }

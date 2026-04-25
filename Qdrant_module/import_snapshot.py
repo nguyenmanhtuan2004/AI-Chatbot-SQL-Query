@@ -5,7 +5,7 @@ from qdrant_client import QdrantClient
 client = QdrantClient(url="http://localhost:6333")
 
 snapshot_path = Path(
-    r"factory_data_dictionary-1353333361573545-2026-04-22-05-02-55.snapshot"
+    r"factory_data_dictionary-1353333361573545-2026-04-25-06-32-15.snapshot"
 )
 
 if not snapshot_path.exists():
