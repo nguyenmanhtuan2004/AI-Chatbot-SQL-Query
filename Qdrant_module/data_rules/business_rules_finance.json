@@ -4,7 +4,7 @@
       "type": "business_rule",
       "domain": "finance",
       "metric_name": "Tổng Doanh thu (Total Revenue)",
-      "trigger_keywords": ["doanh thu", "tiền thu được", "tổng tiền bán", "revenue"],
+      "trigger_keywords": ["doanh thu", "tiền thu được", "tổng tiền bán", "revenue", "tổng doanh thu", "doanh số"],
       "tables_involved": ["PRODUCTIVITY", "PRODUCTS"]
     },
     "content": {
@@ -13,7 +13,7 @@
       "conditions": "Thường GROUP BY theo p.ProductID, p.LineID, hoặc ngày tháng tùy thuộc vào câu hỏi của người dùng.",
       "few_shot_example": {
         "user_query": "Tổng doanh thu của chuyền 1 hôm qua là bao nhiêu?",
-        "expected_sql": "SELECT SUM(p.Quantity * prd.UnitPrice) AS TotalRevenue FROM PRODUCTIVITY p JOIN PRODUCTS prd ON p.ProductID = prd.ProductID WHERE p.LineID = 'LINE_01' AND CAST(p.StartTime AS DATE) = CAST(GETDATE() AS DATE)"
+        "expected_sql": "SELECT SUM(p.Quantity * prd.UnitPrice) AS TotalRevenue FROM PRODUCTIVITY p JOIN PRODUCTS prd ON p.ProductID = prd.ProductID WHERE p.LineID = 'LINE_01' AND CAST(p.StartTime AS DATE) = CAST(DATEADD(day, -1, GETDATE()) AS DATE)"
       }
     }
   },
@@ -22,16 +22,196 @@
       "type": "business_rule",
       "domain": "finance",
       "metric_name": "Giá trị thiệt hại do phế phẩm (Cost of Scrap)",
-      "trigger_keywords": ["thiệt hại", "tiền hàng rớt", "chi phí phế phẩm", "scrap cost", "tiền hỏng"],
+      "trigger_keywords": ["thiệt hại", "tiền hàng rớt", "chi phí phế phẩm", "scrap cost", "tiền hỏng", "mất tiền vì phế phẩm", "thiệt hại phế phẩm"],
       "tables_involved": ["DEFECTS", "PRODUCTIVITY", "PRODUCTS", "DEFECT_CATEGORIES"]
     },
     "content": {
-      "description": "Tính toán số tiền bị thiệt hại do hàng rớt, hàng phế phẩm (các lỗi sản phẩm không thể sửa chữa được).",
+      "description": "Tính toán số tiền bị thiệt hại do hàng rớt, hàng phế phẩm (các lỗi sản phẩm không thể sửa chữa được). Chỉ tính các lỗi có IsRepairable = 0.",
       "sql_logic": "JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID JOIN PRODUCTS prd ON p.ProductID = prd.ProductID JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode. Công thức: SUM(d.DefectCount * prd.UnitPrice)",
       "conditions": "Bắt buộc phải có điều kiện lọc cat.IsRepairable = 0 để chỉ tính các sản phẩm hỏng không thể sửa chữa (phế phẩm).",
       "few_shot_example": {
         "user_query": "Hôm nay chúng ta thiệt hại bao nhiêu tiền vì hàng rớt?",
         "expected_sql": "SELECT SUM(d.DefectCount * prd.UnitPrice) AS ScrapCost FROM DEFECTS d JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID JOIN PRODUCTS prd ON p.ProductID = prd.ProductID JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode WHERE cat.IsRepairable = 0 AND CAST(p.StartTime AS DATE) = CAST(GETDATE() AS DATE)"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "finance",
+      "metric_name": "Chi phí tái chế hàng lỗi sửa được (Cost of Rework)",
+      "trigger_keywords": ["chi phí sửa chữa", "chi phí tái chế", "rework cost", "tiền sửa hàng lỗi", "chi phí làm lại", "hàng lỗi sửa được", "tiền xử lý hàng lỗi"],
+      "tables_involved": ["DEFECTS", "PRODUCTIVITY", "PRODUCTS", "DEFECT_CATEGORIES"]
+    },
+    "content": {
+      "description": "Tính toán chi phí phát sinh do phải tái chế, sửa chữa lại các sản phẩm bị lỗi nhưng vẫn có thể sửa được. Thường tính bằng tỷ lệ phần trăm đơn giá (ví dụ 20–30% UnitPrice) hoặc bằng chính UnitPrice nếu chưa có dữ liệu chi phí sửa riêng.",
+      "sql_logic": "JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID JOIN PRODUCTS prd ON p.ProductID = prd.ProductID JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode. Công thức ước tính: SUM(d.DefectCount * prd.UnitPrice * 0.25)",
+      "conditions": "Bắt buộc phải có điều kiện lọc cat.IsRepairable = 1 để chỉ tính các sản phẩm lỗi có thể sửa chữa được. Hệ số chi phí sửa (0.25 = 25% đơn giá) có thể điều chỉnh theo chính sách nhà máy.",
+      "few_shot_example": {
+        "user_query": "Chi phí tái chế hàng lỗi sửa được trong tuần này là bao nhiêu?",
+        "expected_sql": "SELECT SUM(d.DefectCount * prd.UnitPrice * 0.25) AS ReworkCost FROM DEFECTS d JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID JOIN PRODUCTS prd ON p.ProductID = prd.ProductID JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode WHERE cat.IsRepairable = 1 AND p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0)"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "finance",
+      "metric_name": "Doanh thu theo từng dây chuyền (Revenue by Production Line)",
+      "trigger_keywords": ["doanh thu theo chuyền", "doanh thu từng chuyền", "chuyền nào doanh thu cao", "so sánh doanh thu chuyền", "revenue by line", "doanh thu mỗi chuyền"],
+      "tables_involved": ["PRODUCTIVITY", "PRODUCTS", "PRODUCTION_LINES"]
+    },
+    "content": {
+      "description": "Tính và so sánh doanh thu giữa các dây chuyền sản xuất. Giúp xác định chuyền nào đang tạo ra giá trị cao nhất hoặc thấp nhất trong nhà máy.",
+      "sql_logic": "JOIN PRODUCTS prd ON p.ProductID = prd.ProductID JOIN PRODUCTION_LINES pl ON p.LineID = pl.LineID. Công thức: SUM(p.Quantity * prd.UnitPrice). GROUP BY p.LineID, pl.ManagerName, pl.Department.",
+      "conditions": "Bắt buộc GROUP BY p.LineID, pl.ManagerName, pl.Department. Bảng PRODUCTION_LINES KHÔNG có cột LineName, chỉ có LineID, ManagerName, Department. Nên có ORDER BY TotalRevenue DESC để xếp hạng doanh thu từ cao đến thấp.",
+      "few_shot_example": {
+        "user_query": "Doanh thu của từng chuyền trong tháng này là bao nhiêu? Chuyền nào cao nhất?",
+        "expected_sql": "SELECT p.LineID, pl.ManagerName, pl.Department, SUM(p.Quantity * prd.UnitPrice) AS TotalRevenue FROM PRODUCTIVITY p JOIN PRODUCTS prd ON p.ProductID = prd.ProductID JOIN PRODUCTION_LINES pl ON p.LineID = pl.LineID WHERE MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) GROUP BY p.LineID, pl.ManagerName, pl.Department ORDER BY TotalRevenue DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "finance",
+      "metric_name": "Doanh thu theo ca làm việc (Revenue by Shift)",
+      "trigger_keywords": ["doanh thu theo ca", "doanh thu ca sáng", "doanh thu ca chiều", "doanh thu ca đêm", "revenue by shift", "ca nào doanh thu cao", "so sánh doanh thu ca"],
+      "tables_involved": ["PRODUCTIVITY", "PRODUCTS", "SHIFTS"]
+    },
+    "content": {
+      "description": "Tính doanh thu được tạo ra trong từng ca làm việc (sáng/chiều/đêm) để phân tích hiệu quả tài chính theo ca.",
+      "sql_logic": "JOIN PRODUCTS prd ON p.ProductID = prd.ProductID JOIN SHIFTS s ON p.ShiftID = s.ShiftID. Công thức: SUM(p.Quantity * prd.UnitPrice). GROUP BY p.ShiftID, s.ShiftName.",
+      "conditions": "Bắt buộc GROUP BY p.ShiftID và s.ShiftName để phân chia theo từng ca. Có thể lọc thêm theo ngày hoặc chuyền tùy câu hỏi.",
+      "few_shot_example": {
+        "user_query": "So sánh doanh thu của các ca làm việc trong hôm nay.",
+        "expected_sql": "SELECT s.ShiftName, SUM(p.Quantity * prd.UnitPrice) AS TotalRevenue FROM PRODUCTIVITY p JOIN PRODUCTS prd ON p.ProductID = prd.ProductID JOIN SHIFTS s ON p.ShiftID = s.ShiftID WHERE CAST(p.StartTime AS DATE) = CAST(GETDATE() AS DATE) GROUP BY p.ShiftID, s.ShiftName ORDER BY TotalRevenue DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "finance",
+      "metric_name": "Doanh thu thực tế so với Doanh thu kế hoạch (Actual vs Planned Revenue)",
+      "trigger_keywords": ["doanh thu kế hoạch", "doanh thu thực tế vs kế hoạch", "đạt doanh thu kế hoạch", "so sánh doanh thu kế hoạch", "planned revenue", "chênh lệch doanh thu"],
+      "tables_involved": ["PRODUCTIVITY", "PRODUCTS", "PRODUCTION_PLANS"]
+    },
+    "content": {
+      "description": "So sánh doanh thu thực tế đạt được với doanh thu kế hoạch đặt ra (tính từ TargetQuantity * UnitPrice). Giúp đánh giá mức độ hoàn thành mục tiêu tài chính.",
+      "sql_logic": "JOIN PRODUCTS prd ON p.ProductID = prd.ProductID JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID. Doanh thu thực tế: SUM(p.Quantity * prd.UnitPrice). Doanh thu kế hoạch: MAX(pp.TargetQuantity) * MAX(prd.UnitPrice). Tỉ lệ đạt: (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0).",
+      "conditions": "Sử dụng MAX(pp.TargetQuantity) và MAX(prd.UnitPrice) để tránh dữ liệu bị nhân đôi do quan hệ 1-N khi JOIN. GROUP BY pp.PlanID. Dùng NULLIF để tránh chia cho 0. Lưu ý: KHÔNG dùng alias 'plan' vì đây là reserved keyword trong SQL Server.",
+      "few_shot_example": {
+        "user_query": "Doanh thu thực tế của kế hoạch số 5 đạt được bao nhiêu phần trăm so với kế hoạch?",
+        "expected_sql": "SELECT pp.PlanID, SUM(p.Quantity * prd.UnitPrice) AS ActualRevenue, MAX(pp.TargetQuantity) * MAX(prd.UnitPrice) AS PlannedRevenue, (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0) AS AchievementRate FROM PRODUCTIVITY p JOIN PRODUCTS prd ON p.ProductID = prd.ProductID JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID WHERE pp.PlanID = 5 GROUP BY pp.PlanID"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "finance",
+      "metric_name": "Tổng thiệt hại tài chính (Total Financial Loss)",
+      "trigger_keywords": ["tổng thiệt hại", "tổng tổn thất", "tổng chi phí lỗi", "total financial loss", "tổng tiền mất", "thiệt hại tổng cộng", "tổng chi phí chất lượng"],
+      "tables_involved": ["DEFECTS", "PRODUCTIVITY", "PRODUCTS", "DEFECT_CATEGORIES"]
+    },
+    "content": {
+      "description": "Tính tổng thiệt hại tài chính bao gồm cả chi phí phế phẩm (hàng không sửa được) và chi phí tái chế (hàng sửa được) trong cùng một truy vấn để có cái nhìn toàn diện về tổn thất chất lượng.",
+      "sql_logic": "JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID JOIN PRODUCTS prd ON p.ProductID = prd.ProductID JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode. Công thức: SUM(CASE WHEN cat.IsRepairable = 0 THEN d.DefectCount * prd.UnitPrice ELSE d.DefectCount * prd.UnitPrice * 0.25 END) AS TotalFinancialLoss.",
+      "conditions": "Dùng CASE WHEN để phân biệt hai loại thiệt hại: phế phẩm (IsRepairable = 0) tính 100% đơn giá, hàng sửa được (IsRepairable = 1) tính theo tỉ lệ chi phí sửa (mặc định 25%). Có thể tách riêng hai cột ScrapCost và ReworkCost để dễ đọc báo cáo.",
+      "few_shot_example": {
+        "user_query": "Tổng thiệt hại tài chính do lỗi sản xuất trong tháng này là bao nhiêu?",
+        "expected_sql": "SELECT SUM(CASE WHEN cat.IsRepairable = 0 THEN d.DefectCount * prd.UnitPrice ELSE d.DefectCount * prd.UnitPrice * 0.25 END) AS TotalFinancialLoss, SUM(CASE WHEN cat.IsRepairable = 0 THEN d.DefectCount * prd.UnitPrice ELSE 0 END) AS ScrapCost, SUM(CASE WHEN cat.IsRepairable = 1 THEN d.DefectCount * prd.UnitPrice * 0.25 ELSE 0 END) AS ReworkCost FROM DEFECTS d JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID JOIN PRODUCTS prd ON p.ProductID = prd.ProductID JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode WHERE MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE())"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "finance",
+      "metric_name": "Doanh thu theo từng sản phẩm (Revenue by Product)",
+      "trigger_keywords": ["doanh thu sản phẩm", "sản phẩm nào doanh thu cao", "doanh thu từng loại hàng", "revenue by product", "sản phẩm nào bán được nhiều tiền", "doanh thu theo mã hàng", "sản phẩm đóng góp doanh thu nhiều nhất"],
+      "tables_involved": ["PRODUCTIVITY", "PRODUCTS"]
+    },
+    "content": {
+      "description": "Tính và xếp hạng doanh thu theo từng loại sản phẩm. Giúp xác định sản phẩm nào đang đóng góp giá trị lớn nhất cho nhà máy.",
+      "sql_logic": "JOIN PRODUCTS prd ON p.ProductID = prd.ProductID. Công thức: SUM(p.Quantity * prd.UnitPrice). GROUP BY p.ProductID, prd.ProductName, prd.UnitPrice.",
+      "conditions": "Bắt buộc GROUP BY p.ProductID, prd.ProductName, prd.UnitPrice. ProductID trong DB có dạng 'TSHIRT_WHT', 'PANTS_KHK', 'SHIRT_BLU',... Nên ORDER BY TotalRevenue DESC để xếp hạng từ cao đến thấp.",
+      "few_shot_example": {
+        "user_query": "Sản phẩm nào tạo ra doanh thu cao nhất trong tháng này?",
+        "expected_sql": "SELECT p.ProductID, prd.ProductName, prd.UnitPrice, SUM(p.Quantity) AS TotalQuantity, SUM(p.Quantity * prd.UnitPrice) AS TotalRevenue FROM PRODUCTIVITY p JOIN PRODUCTS prd ON p.ProductID = prd.ProductID WHERE MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) GROUP BY p.ProductID, prd.ProductName, prd.UnitPrice ORDER BY TotalRevenue DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "finance",
+      "metric_name": "Doanh thu theo bộ phận / xưởng (Revenue by Department)",
+      "trigger_keywords": ["doanh thu theo xưởng", "doanh thu phòng ban", "xưởng nào doanh thu cao", "revenue by department", "doanh thu từng xưởng", "so sánh doanh thu xưởng", "bộ phận nào doanh thu cao nhất"],
+      "tables_involved": ["PRODUCTIVITY", "PRODUCTS", "PRODUCTION_LINES"]
+    },
+    "content": {
+      "description": "Tổng hợp doanh thu theo từng bộ phận / xưởng sản xuất (Department). Dùng để so sánh đóng góp doanh thu giữa các xưởng: Xưởng 1, Xưởng 2, Xưởng 3, Hoàn thiện, Đóng gói, Kho.",
+      "sql_logic": "JOIN PRODUCTS prd ON p.ProductID = prd.ProductID JOIN PRODUCTION_LINES pl ON p.LineID = pl.LineID. Công thức: SUM(p.Quantity * prd.UnitPrice). GROUP BY pl.Department.",
+      "conditions": "Bắt buộc GROUP BY pl.Department. Các department trong DB: N'Xưởng 1', N'Xưởng 2', N'Xưởng 3', N'Hoàn thiện', N'Đóng gói', N'Kho'. Nên ORDER BY TotalRevenue DESC. Dùng N'' khi lọc tên department.",
+      "few_shot_example": {
+        "user_query": "So sánh doanh thu của các xưởng trong tuần này.",
+        "expected_sql": "SELECT pl.Department, SUM(p.Quantity * prd.UnitPrice) AS TotalRevenue FROM PRODUCTIVITY p JOIN PRODUCTS prd ON p.ProductID = prd.ProductID JOIN PRODUCTION_LINES pl ON p.LineID = pl.LineID WHERE p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0) GROUP BY pl.Department ORDER BY TotalRevenue DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "finance",
+      "metric_name": "Tỉ lệ thiệt hại tài chính so với doanh thu (Financial Loss Rate)",
+      "trigger_keywords": ["tỉ lệ thiệt hại", "thiệt hại chiếm bao nhiêu phần trăm", "loss rate", "tỉ lệ tổn thất", "phần trăm thiệt hại", "thiệt hại so với doanh thu", "mức độ thiệt hại"],
+      "tables_involved": ["DEFECTS", "PRODUCTIVITY", "PRODUCTS", "DEFECT_CATEGORIES"]
+    },
+    "content": {
+      "description": "Tính phần trăm thiệt hại tài chính (phế phẩm + tái chế) so với tổng doanh thu thực tế. Dùng để đánh giá mức độ nghiêm trọng của vấn đề chất lượng ảnh hưởng đến tài chính.",
+      "sql_logic": "JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID JOIN PRODUCTS prd ON p.ProductID = prd.ProductID JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode. Tổng thiệt hại: SUM(CASE WHEN cat.IsRepairable = 0 THEN d.DefectCount * prd.UnitPrice ELSE d.DefectCount * prd.UnitPrice * 0.25 END). Tổng doanh thu lấy từ subquery tổng hợp PRODUCTIVITY. Tỉ lệ = TotalLoss * 100.0 / NULLIF(TotalRevenue, 0).",
+      "conditions": "Vì tử số và mẫu số lấy từ hai bảng khác nhau (DEFECTS và PRODUCTIVITY), nên dùng CTE hoặc subquery để tính riêng rồi tính tỉ lệ. Dùng NULLIF để tránh chia cho 0.",
+      "few_shot_example": {
+        "user_query": "Thiệt hại tài chính do lỗi chiếm bao nhiêu phần trăm doanh thu trong tháng này?",
+        "expected_sql": "WITH Revenue AS (SELECT SUM(p.Quantity * prd.UnitPrice) AS TotalRevenue FROM PRODUCTIVITY p JOIN PRODUCTS prd ON p.ProductID = prd.ProductID WHERE MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE())), Loss AS (SELECT SUM(CASE WHEN cat.IsRepairable = 0 THEN d.DefectCount * prd.UnitPrice ELSE d.DefectCount * prd.UnitPrice * 0.25 END) AS TotalLoss FROM DEFECTS d JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID JOIN PRODUCTS prd ON p.ProductID = prd.ProductID JOIN DEFECT_CATEGORIES cat ON d.DefectTypeCode = cat.DefectTypeCode WHERE MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE())) SELECT r.TotalRevenue, l.TotalLoss, (l.TotalLoss * 100.0) / NULLIF(r.TotalRevenue, 0) AS LossRate FROM Revenue r CROSS JOIN Loss l"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "finance",
+      "metric_name": "Doanh thu trung bình theo ngày (Average Daily Revenue)",
+      "trigger_keywords": ["doanh thu trung bình mỗi ngày", "doanh thu bình quân ngày", "average daily revenue", "doanh thu ngày trung bình", "mỗi ngày thu được bao nhiêu", "doanh thu bình quân"],
+      "tables_involved": ["PRODUCTIVITY", "PRODUCTS"]
+    },
+    "content": {
+      "description": "Tính doanh thu trung bình mỗi ngày trong một khoảng thời gian nhất định. Dùng để lập kế hoạch và dự báo tài chính.",
+      "sql_logic": "JOIN PRODUCTS prd ON p.ProductID = prd.ProductID. Tổng doanh thu: SUM(p.Quantity * prd.UnitPrice). Số ngày: COUNT(DISTINCT CAST(p.StartTime AS DATE)). Doanh thu trung bình: SUM(...) / NULLIF(COUNT(DISTINCT CAST(p.StartTime AS DATE)), 0).",
+      "conditions": "Dùng COUNT(DISTINCT CAST(p.StartTime AS DATE)) để đếm số ngày thực tế có dữ liệu. Không nên chia cứng cho số ngày lịch mà phải đếm số ngày có sản xuất thực tế để tránh kết quả sai.",
+      "few_shot_example": {
+        "user_query": "Doanh thu trung bình mỗi ngày của chuyền 1 trong tháng này là bao nhiêu?",
+        "expected_sql": "SELECT SUM(p.Quantity * prd.UnitPrice) AS TotalRevenue, COUNT(DISTINCT CAST(p.StartTime AS DATE)) AS WorkingDays, SUM(p.Quantity * prd.UnitPrice) / NULLIF(COUNT(DISTINCT CAST(p.StartTime AS DATE)), 0) AS AvgDailyRevenue FROM PRODUCTIVITY p JOIN PRODUCTS prd ON p.ProductID = prd.ProductID WHERE p.LineID = 'LINE_01' AND MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE())"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "finance",
+      "metric_name": "So sánh doanh thu tháng này với tháng trước (Month-over-Month Revenue)",
+      "trigger_keywords": ["doanh thu tháng này so với tháng trước", "tăng trưởng doanh thu", "revenue growth", "doanh thu tăng giảm", "so sánh doanh thu tháng", "revenue mom", "doanh thu tháng trước"],
+      "tables_involved": ["PRODUCTIVITY", "PRODUCTS"]
+    },
+    "content": {
+      "description": "So sánh tổng doanh thu giữa tháng hiện tại và tháng trước để theo dõi tăng trưởng. Tính cả số tuyệt đối và phần trăm thay đổi.",
+      "sql_logic": "JOIN PRODUCTS prd ON p.ProductID = prd.ProductID. Dùng SUM(CASE WHEN ... THEN ... ELSE 0 END) để tính song song hai tháng. Tăng trưởng: (ThángNày - ThángTrước) * 100.0 / NULLIF(ThángTrước, 0).",
+      "conditions": "Dùng CASE WHEN kết hợp cả MONTH() và YEAR() cho cả hai kỳ. Tháng trước: MONTH(DATEADD(month, -1, GETDATE())) và YEAR(DATEADD(month, -1, GETDATE())). Dùng NULLIF để tránh chia cho 0 khi tháng trước không có dữ liệu.",
+      "few_shot_example": {
+        "user_query": "Doanh thu tháng này so với tháng trước tăng hay giảm bao nhiêu phần trăm?",
+        "expected_sql": "SELECT SUM(CASE WHEN MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) THEN p.Quantity * prd.UnitPrice ELSE 0 END) AS CurrentMonthRevenue, SUM(CASE WHEN MONTH(p.StartTime) = MONTH(DATEADD(month, -1, GETDATE())) AND YEAR(p.StartTime) = YEAR(DATEADD(month, -1, GETDATE())) THEN p.Quantity * prd.UnitPrice ELSE 0 END) AS PreviousMonthRevenue, (SUM(CASE WHEN MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) THEN p.Quantity * prd.UnitPrice ELSE 0 END) - SUM(CASE WHEN MONTH(p.StartTime) = MONTH(DATEADD(month, -1, GETDATE())) AND YEAR(p.StartTime) = YEAR(DATEADD(month, -1, GETDATE())) THEN p.Quantity * prd.UnitPrice ELSE 0 END)) * 100.0 / NULLIF(SUM(CASE WHEN MONTH(p.StartTime) = MONTH(DATEADD(month, -1, GETDATE())) AND YEAR(p.StartTime) = YEAR(DATEADD(month, -1, GETDATE())) THEN p.Quantity * prd.UnitPrice ELSE 0 END), 0) AS GrowthRate FROM PRODUCTIVITY p JOIN PRODUCTS prd ON p.ProductID = prd.ProductID"
       }
     }
   }

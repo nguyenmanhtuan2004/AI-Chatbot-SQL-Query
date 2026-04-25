@@ -1,0 +1,295 @@
+[
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "temporal",
+      "metric_name": "Lọc theo ngày cụ thể (Specific Date Filter)",
+      "trigger_keywords": ["ngày 22", "ngày 15 tháng 4", "vào ngày", "hôm qua", "hôm nay", "ngày cụ thể", "specific date", "ngày tháng năm"],
+      "tables_involved": ["PRODUCTIVITY", "DEFECTS", "WORK_ASSIGNMENTS"]
+    },
+    "content": {
+      "description": "Lọc dữ liệu theo một ngày cụ thể do người dùng chỉ định. Dùng CAST(cột AS DATE) = 'YYYY-MM-DD' để so sánh chính xác theo ngày, loại bỏ phần giờ phút giây.",
+      "sql_logic": "Dùng CAST(p.StartTime AS DATE) = 'YYYY-MM-DD' để lọc theo ngày cụ thể. Nếu là hôm nay: CAST(GETDATE() AS DATE). Nếu là hôm qua: CAST(DATEADD(day, -1, GETDATE()) AS DATE).",
+      "conditions": "Luôn dùng CAST(cột AS DATE) để chuẩn hoá về kiểu DATE trước khi so sánh, tránh lỗi so sánh DATETIME với DATE. Định dạng ngày phải là 'YYYY-MM-DD' (ISO 8601) khi truyền vào SQL Server.",
+      "date_mapping_examples": {
+        "hôm nay": "CAST(p.StartTime AS DATE) = CAST(GETDATE() AS DATE)",
+        "hôm qua": "CAST(p.StartTime AS DATE) = CAST(DATEADD(day, -1, GETDATE()) AS DATE)",
+        "ngày 22/04/2026": "CAST(p.StartTime AS DATE) = '2026-04-22'",
+        "ngày 22 tháng 4 năm 2026": "CAST(p.StartTime AS DATE) = '2026-04-22'",
+        "ngày 1 tháng 5": "CAST(p.StartTime AS DATE) = '2026-05-01'"
+      },
+      "few_shot_example": {
+        "user_query": "Sản lượng của chuyền 1 vào ngày 22/04/2026 là bao nhiêu?",
+        "expected_sql": "SELECT SUM(p.Quantity) AS TotalQuantity FROM PRODUCTIVITY p WHERE p.LineID = 'LINE_01' AND CAST(p.StartTime AS DATE) = '2026-04-22'"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "temporal",
+      "metric_name": "Lọc theo khoảng ngày (Date Range Filter)",
+      "trigger_keywords": ["từ ngày đến ngày", "trong khoảng", "khoảng thời gian", "từ X đến Y", "date range", "giữa ngày"],
+      "tables_involved": ["PRODUCTIVITY", "DEFECTS", "WORK_ASSIGNMENTS"]
+    },
+    "content": {
+      "description": "Lọc dữ liệu trong một khoảng thời gian có ngày bắt đầu và ngày kết thúc cụ thể do người dùng chỉ định.",
+      "sql_logic": "Dùng CAST(cột AS DATE) BETWEEN 'YYYY-MM-DD' AND 'YYYY-MM-DD'. Hoặc dùng >= và <= để rõ ràng hơn.",
+      "conditions": "Nên dùng >= ngày bắt đầu AND < ngày kết thúc + 1 ngày để bao gồm đủ cả ngày cuối. Có thể dùng BETWEEN nếu đã CAST về DATE.",
+      "date_mapping_examples": {
+        "từ ngày 22/04 đến ngày 25/04/2026": "CAST(p.StartTime AS DATE) BETWEEN '2026-04-22' AND '2026-04-25'",
+        "từ 1/4 đến 30/4": "CAST(p.StartTime AS DATE) BETWEEN '2026-04-01' AND '2026-04-30'",
+        "trong 3 ngày gần nhất": "p.StartTime >= DATEADD(day, -3, CAST(GETDATE() AS DATE))",
+        "trong 7 ngày qua": "p.StartTime >= DATEADD(day, -7, CAST(GETDATE() AS DATE))",
+        "trong 30 ngày qua": "p.StartTime >= DATEADD(day, -30, CAST(GETDATE() AS DATE))"
+      },
+      "few_shot_example": {
+        "user_query": "Tổng doanh thu từ ngày 22/04/2026 đến ngày 25/04/2026 là bao nhiêu?",
+        "expected_sql": "SELECT SUM(p.Quantity * prd.UnitPrice) AS TotalRevenue FROM PRODUCTIVITY p JOIN PRODUCTS prd ON p.ProductID = prd.ProductID WHERE CAST(p.StartTime AS DATE) BETWEEN '2026-04-22' AND '2026-04-25'"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "temporal",
+      "metric_name": "Lọc theo tháng cụ thể (Specific Month Filter)",
+      "trigger_keywords": ["tháng 4", "tháng 3 năm nay", "tháng trước", "tháng này", "trong tháng", "specific month", "tháng 1", "tháng 2"],
+      "tables_involved": ["PRODUCTIVITY", "DEFECTS"]
+    },
+    "content": {
+      "description": "Lọc dữ liệu theo một tháng cụ thể. Luôn kết hợp cả MONTH() và YEAR() để tránh lấy nhầm dữ liệu cùng tháng nhưng khác năm.",
+      "sql_logic": "Dùng MONTH(cột) = số_tháng AND YEAR(cột) = năm. Không bao giờ chỉ lọc mỗi MONTH() vì sẽ lấy dữ liệu của tất cả các năm.",
+      "conditions": "Bắt buộc kết hợp cả MONTH() và YEAR(). Nếu người dùng không nói năm thì mặc định dùng YEAR(GETDATE()). Tháng này = MONTH(GETDATE()) AND YEAR(GETDATE()). Tháng trước: dùng DATEADD(month, -1, GETDATE()) để tính.",
+      "date_mapping_examples": {
+        "tháng này": "MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE())",
+        "tháng trước": "MONTH(p.StartTime) = MONTH(DATEADD(month, -1, GETDATE())) AND YEAR(p.StartTime) = YEAR(DATEADD(month, -1, GETDATE()))",
+        "tháng 4 năm 2026": "MONTH(p.StartTime) = 4 AND YEAR(p.StartTime) = 2026",
+        "tháng 3": "MONTH(p.StartTime) = 3 AND YEAR(p.StartTime) = YEAR(GETDATE())",
+        "tháng 1/2026": "MONTH(p.StartTime) = 1 AND YEAR(p.StartTime) = 2026"
+      },
+      "few_shot_example": {
+        "user_query": "Tổng lỗi phát sinh trong tháng 4 năm 2026 của toàn nhà máy là bao nhiêu?",
+        "expected_sql": "SELECT SUM(d.DefectCount) AS TotalDefects FROM DEFECTS d JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID WHERE MONTH(p.StartTime) = 4 AND YEAR(p.StartTime) = 2026"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "temporal",
+      "metric_name": "Lọc theo tuần cụ thể (Week Filter)",
+      "trigger_keywords": ["tuần này", "tuần trước", "tuần sau", "tuần vừa rồi", "this week", "last week", "trong tuần"],
+      "tables_involved": ["PRODUCTIVITY", "DEFECTS", "WORK_ASSIGNMENTS"]
+    },
+    "content": {
+      "description": "Lọc dữ liệu theo tuần làm việc. SQL Server tính tuần bắt đầu từ Thứ Hai (DATEDIFF với origin 0). Dùng DATEADD + DATEDIFF để tính ngày đầu và cuối tuần chính xác.",
+      "sql_logic": "Tuần này: p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0) AND p.StartTime < DATEADD(week, DATEDIFF(week, 0, GETDATE()) + 1, 0). Tuần trước: lùi thêm 1 tuần.",
+      "conditions": "DATEDIFF(week, 0, GETDATE()) trả về số tuần tính từ ngày gốc (1900-01-01). Dùng DATEADD(week, N, 0) để tính ngày đầu tuần thứ N.",
+      "date_mapping_examples": {
+        "tuần này": "p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0) AND p.StartTime < DATEADD(week, DATEDIFF(week, 0, GETDATE()) + 1, 0)",
+        "tuần trước": "p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()) - 1, 0) AND p.StartTime < DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0)",
+        "từ đầu tuần đến hôm nay": "p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0) AND p.StartTime <= GETDATE()"
+      },
+      "few_shot_example": {
+        "user_query": "Tổng sản lượng của tuần trước là bao nhiêu?",
+        "expected_sql": "SELECT SUM(p.Quantity) AS TotalQuantity FROM PRODUCTIVITY p WHERE p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()) - 1, 0) AND p.StartTime < DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0)"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "temporal",
+      "metric_name": "Lọc theo quý (Quarter Filter)",
+      "trigger_keywords": ["quý 1", "quý 2", "quý 3", "quý 4", "quarter", "quý này", "quý trước", "Q1", "Q2"],
+      "tables_involved": ["PRODUCTIVITY", "DEFECTS"]
+    },
+    "content": {
+      "description": "Lọc dữ liệu theo quý trong năm. Quý 1 = tháng 1-3, Quý 2 = tháng 4-6, Quý 3 = tháng 7-9, Quý 4 = tháng 10-12. Dùng DATEPART(QUARTER, ...) hoặc BETWEEN với ngày cụ thể.",
+      "sql_logic": "Dùng DATEPART(QUARTER, p.StartTime) = số_quý AND YEAR(p.StartTime) = năm. Hoặc dùng khoảng ngày BETWEEN để rõ ràng hơn.",
+      "conditions": "Bắt buộc kết hợp YEAR() để tránh lấy dữ liệu nhầm năm. Nếu người dùng không nói năm thì mặc định dùng YEAR(GETDATE()).",
+      "date_mapping_examples": {
+        "quý 1 năm 2026": "CAST(p.StartTime AS DATE) BETWEEN '2026-01-01' AND '2026-03-31'",
+        "quý 2 năm 2026": "CAST(p.StartTime AS DATE) BETWEEN '2026-04-01' AND '2026-06-30'",
+        "quý 3 năm 2026": "CAST(p.StartTime AS DATE) BETWEEN '2026-07-01' AND '2026-09-30'",
+        "quý 4 năm 2026": "CAST(p.StartTime AS DATE) BETWEEN '2026-10-01' AND '2026-12-31'",
+        "quý này": "DATEPART(QUARTER, p.StartTime) = DATEPART(QUARTER, GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE())",
+        "quý trước": "DATEPART(QUARTER, p.StartTime) = DATEPART(QUARTER, DATEADD(QUARTER, -1, GETDATE())) AND YEAR(p.StartTime) = YEAR(DATEADD(QUARTER, -1, GETDATE()))"
+      },
+      "few_shot_example": {
+        "user_query": "Doanh thu tổng của quý 2 năm 2026 là bao nhiêu?",
+        "expected_sql": "SELECT SUM(p.Quantity * prd.UnitPrice) AS TotalRevenue FROM PRODUCTIVITY p JOIN PRODUCTS prd ON p.ProductID = prd.ProductID WHERE CAST(p.StartTime AS DATE) BETWEEN '2026-04-01' AND '2026-06-30'"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "temporal",
+      "metric_name": "Lọc theo năm (Year Filter)",
+      "trigger_keywords": ["năm 2026", "năm nay", "năm ngoái", "trong năm", "year filter", "cả năm", "ytd", "year to date"],
+      "tables_involved": ["PRODUCTIVITY", "DEFECTS"]
+    },
+    "content": {
+      "description": "Lọc dữ liệu theo toàn bộ một năm hoặc từ đầu năm đến hiện tại (Year-to-Date). Dùng YEAR() để lọc theo năm.",
+      "sql_logic": "Lọc cả năm: YEAR(p.StartTime) = năm. Lọc từ đầu năm đến hôm nay (YTD): p.StartTime >= DATEFROMPARTS(YEAR(GETDATE()), 1, 1) AND p.StartTime <= GETDATE().",
+      "conditions": "Nếu người dùng không nói cụ thể năm, dùng YEAR(GETDATE()) làm mặc định. YTD (Year to Date) = từ 01/01 của năm hiện tại đến hôm nay.",
+      "date_mapping_examples": {
+        "năm 2026": "YEAR(p.StartTime) = 2026",
+        "năm nay": "YEAR(p.StartTime) = YEAR(GETDATE())",
+        "năm ngoái": "YEAR(p.StartTime) = YEAR(GETDATE()) - 1",
+        "từ đầu năm đến nay (YTD)": "p.StartTime >= DATEFROMPARTS(YEAR(GETDATE()), 1, 1) AND CAST(p.StartTime AS DATE) <= CAST(GETDATE() AS DATE)"
+      },
+      "few_shot_example": {
+        "user_query": "Tổng sản lượng từ đầu năm 2026 đến nay là bao nhiêu?",
+        "expected_sql": "SELECT SUM(p.Quantity) AS TotalQuantity FROM PRODUCTIVITY p WHERE p.StartTime >= '2026-01-01' AND CAST(p.StartTime AS DATE) <= CAST(GETDATE() AS DATE)"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "temporal",
+      "metric_name": "Lọc theo ngày trong tháng cụ thể (Day of Specific Month)",
+      "trigger_keywords": ["ngày 5 tháng 5", "ngày mấy tháng mấy", "ngày trong tháng", "ngày đầu tháng", "ngày cuối tháng", "mùng 1", "cuối tháng"],
+      "tables_involved": ["PRODUCTIVITY", "DEFECTS", "WORK_ASSIGNMENTS"]
+    },
+    "content": {
+      "description": "Lọc dữ liệu theo một ngày cụ thể trong một tháng cụ thể. Kết hợp DAY(), MONTH(), YEAR() hoặc trực tiếp dùng chuỗi ngày 'YYYY-MM-DD'.",
+      "sql_logic": "Dùng CAST(cột AS DATE) = 'YYYY-MM-DD' là cách đơn giản và chính xác nhất khi người dùng nêu ngày tháng năm đầy đủ.",
+      "conditions": "Ưu tiên dùng chuỗi 'YYYY-MM-DD' thay vì kết hợp DAY() + MONTH() + YEAR() để code gọn hơn. Ngày đầu tháng: DAY(p.StartTime) = 1. Ngày cuối tháng: dùng EOMONTH(GETDATE()) để lấy ngày cuối tháng hiện tại.",
+      "date_mapping_examples": {
+        "ngày 22 tháng 4 năm 2026": "CAST(p.StartTime AS DATE) = '2026-04-22'",
+        "ngày 5/5/2026": "CAST(p.StartTime AS DATE) = '2026-05-05'",
+        "mùng 1 tháng 5 năm 2026": "CAST(p.StartTime AS DATE) = '2026-05-01'",
+        "ngày đầu tháng này": "DAY(p.StartTime) = 1 AND MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE())",
+        "ngày cuối tháng này": "CAST(p.StartTime AS DATE) = EOMONTH(GETDATE())"
+      },
+      "few_shot_example": {
+        "user_query": "Số lỗi phát sinh vào ngày 25 tháng 4 năm 2026 ở chuyền 5 là bao nhiêu?",
+        "expected_sql": "SELECT SUM(d.DefectCount) AS TotalDefects FROM DEFECTS d JOIN PRODUCTIVITY p ON d.ProductivityID = p.ID WHERE p.LineID = 'LINE_05' AND CAST(p.StartTime AS DATE) = '2026-04-25'"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "temporal",
+      "metric_name": "So sánh hai khoảng thời gian (Period-over-Period Comparison)",
+      "trigger_keywords": ["so sánh tháng này với tháng trước", "tháng này so với tháng trước", "tuần này so với tuần trước", "tăng hay giảm so với", "period comparison", "so sánh kỳ trước"],
+      "tables_involved": ["PRODUCTIVITY", "DEFECTS"]
+    },
+    "content": {
+      "description": "So sánh chỉ số giữa hai khoảng thời gian (tháng này vs tháng trước, tuần này vs tuần trước,...) bằng cách dùng CASE WHEN hoặc hai CTE/subquery song song.",
+      "sql_logic": "Dùng SUM(CASE WHEN [điều kiện kỳ hiện tại] THEN giá_trị ELSE 0 END) và SUM(CASE WHEN [điều kiện kỳ trước] THEN giá_trị ELSE 0 END) trong cùng một SELECT để tính song song hai kỳ.",
+      "conditions": "Cách 1 (đơn giản): dùng CASE WHEN với hai điều kiện thời gian khác nhau trong cùng SELECT. Cách 2 (rõ ràng hơn): dùng CTE hoặc subquery cho từng kỳ rồi JOIN lại. Luôn kết hợp YEAR() khi so sánh tháng/tuần để tránh lấy nhầm dữ liệu năm khác.",
+      "few_shot_example": {
+        "user_query": "So sánh tổng sản lượng tháng này với tháng trước của toàn nhà máy.",
+        "expected_sql": "SELECT SUM(CASE WHEN MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) THEN p.Quantity ELSE 0 END) AS CurrentMonth, SUM(CASE WHEN MONTH(p.StartTime) = MONTH(DATEADD(month, -1, GETDATE())) AND YEAR(p.StartTime) = YEAR(DATEADD(month, -1, GETDATE())) THEN p.Quantity ELSE 0 END) AS PreviousMonth FROM PRODUCTIVITY p"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "temporal",
+      "metric_name": "Lọc theo khung giờ cụ thể trong ngày (Time-of-Day Filter)",
+      "trigger_keywords": ["buổi sáng", "buổi chiều", "buổi tối", "giờ sáng", "từ 6 giờ đến 14 giờ", "lọc theo giờ", "time of day", "trong khung giờ", "từ giờ X đến giờ Y"],
+      "tables_involved": ["PRODUCTIVITY", "DEFECTS"]
+    },
+    "content": {
+      "description": "Lọc dữ liệu theo một khung giờ cụ thể trong ngày (ví dụ: 6:00 - 14:00). Dùng DATEPART(HOUR, ...) hoặc CAST với phần giờ để lọc theo giờ trong ngày.",
+      "sql_logic": "Dùng DATEPART(HOUR, p.StartTime) để trích xuất giờ. Lọc theo khoảng: DATEPART(HOUR, p.StartTime) BETWEEN giờ_bắt_đầu AND giờ_kết_thúc. Hoặc dùng CAST(p.StartTime AS TIME) BETWEEN 'HH:MM:SS' AND 'HH:MM:SS'.",
+      "conditions": "Lưu ý: Ca làm việc trong DB: Ca Sáng (06:00-14:00), Ca Chiều (14:00-22:00), Ca Đêm (22:00-06:00). Tốt nhất khi lọc theo ca nên dùng ShiftID thay vì lọc giờ thủ công. Lọc theo giờ phù hợp khi người dùng muốn khoảng giờ tùy chỉnh không phải ca cố định.",
+      "date_mapping_examples": {
+        "từ 6 giờ đến 14 giờ": "DATEPART(HOUR, p.StartTime) >= 6 AND DATEPART(HOUR, p.StartTime) < 14",
+        "buổi sáng (6h-12h)": "DATEPART(HOUR, p.StartTime) >= 6 AND DATEPART(HOUR, p.StartTime) < 12",
+        "buổi chiều (12h-18h)": "DATEPART(HOUR, p.StartTime) >= 12 AND DATEPART(HOUR, p.StartTime) < 18",
+        "buổi tối (18h-22h)": "DATEPART(HOUR, p.StartTime) >= 18 AND DATEPART(HOUR, p.StartTime) < 22",
+        "ban đêm (22h-6h)": "DATEPART(HOUR, p.StartTime) >= 22 OR DATEPART(HOUR, p.StartTime) < 6"
+      },
+      "few_shot_example": {
+        "user_query": "Sản lượng chuyền 2 trong khung giờ từ 6 giờ đến 14 giờ hôm nay là bao nhiêu?",
+        "expected_sql": "SELECT SUM(p.Quantity) AS TotalQuantity FROM PRODUCTIVITY p WHERE p.LineID = 'LINE_02' AND CAST(p.StartTime AS DATE) = CAST(GETDATE() AS DATE) AND DATEPART(HOUR, p.StartTime) >= 6 AND DATEPART(HOUR, p.StartTime) < 14"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "temporal",
+      "metric_name": "Lọc theo ngày trong tuần (Day of Week Filter)",
+      "trigger_keywords": ["thứ 2", "thứ 3", "thứ 4", "thứ 5", "thứ 6", "thứ 7", "chủ nhật", "ngày thứ hai", "day of week", "cuối tuần", "ngày làm việc"],
+      "tables_involved": ["PRODUCTIVITY", "DEFECTS", "WORK_ASSIGNMENTS"]
+    },
+    "content": {
+      "description": "Lọc dữ liệu theo ngày cụ thể trong tuần (thứ 2, thứ 3,..., chủ nhật). Dùng DATEPART(WEEKDAY, ...) kết hợp SET DATEFIRST để xác định đúng ngày trong tuần theo cài đặt SQL Server.",
+      "sql_logic": "SQL Server mặc định: DATEPART(WEEKDAY, date): 1=Chủ nhật, 2=Thứ Hai, 3=Thứ Ba, 4=Thứ Tư, 5=Thứ Năm, 6=Thứ Sáu, 7=Thứ Bảy. Dùng DATENAME(WEEKDAY, date) để lấy tên ngày bằng tiếng Anh. Cách an toàn hơn: DATEPART(WEEKDAY, date) với biết trước giá trị mapping.",
+      "conditions": "SQL Server mặc định DATEFIRST = 7 (Chủ nhật = 1). Thứ Hai = 2, Thứ Ba = 3, Thứ Tư = 4, Thứ Năm = 5, Thứ Sáu = 6, Thứ Bảy = 7, Chủ nhật = 1. Có thể dùng WHERE DATEPART(WEEKDAY, WorkDate) = N để lọc. Cuối tuần: DATEPART(WEEKDAY, date) IN (1, 7).",
+      "date_mapping_examples": {
+        "thứ 2": "DATEPART(WEEKDAY, p.StartTime) = 2",
+        "thứ 3": "DATEPART(WEEKDAY, p.StartTime) = 3",
+        "thứ 4": "DATEPART(WEEKDAY, p.StartTime) = 4",
+        "thứ 5": "DATEPART(WEEKDAY, p.StartTime) = 5",
+        "thứ 6": "DATEPART(WEEKDAY, p.StartTime) = 6",
+        "thứ 7": "DATEPART(WEEKDAY, p.StartTime) = 7",
+        "chủ nhật": "DATEPART(WEEKDAY, p.StartTime) = 1",
+        "cuối tuần (thứ 7 và chủ nhật)": "DATEPART(WEEKDAY, p.StartTime) IN (1, 7)",
+        "ngày làm việc (thứ 2-6)": "DATEPART(WEEKDAY, p.StartTime) BETWEEN 2 AND 6"
+      },
+      "few_shot_example": {
+        "user_query": "Sản lượng vào các ngày thứ 6 trong tháng này là bao nhiêu?",
+        "expected_sql": "SELECT CAST(p.StartTime AS DATE) AS WorkDate, SUM(p.Quantity) AS TotalQuantity FROM PRODUCTIVITY p WHERE DATEPART(WEEKDAY, p.StartTime) = 6 AND MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) GROUP BY CAST(p.StartTime AS DATE) ORDER BY WorkDate ASC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "temporal",
+      "metric_name": "So sánh cùng kỳ năm ngoái (Year-over-Year Comparison)",
+      "trigger_keywords": ["so với năm ngoái", "cùng kỳ năm trước", "year over year", "YoY", "tháng này năm ngoái", "cùng tháng năm ngoái", "so với cùng kỳ", "so sánh năm"],
+      "tables_involved": ["PRODUCTIVITY", "DEFECTS"]
+    },
+    "content": {
+      "description": "So sánh chỉ số (sản lượng, doanh thu, lỗi,...) giữa kỳ hiện tại và cùng kỳ năm ngoái. Dùng để phân tích tăng trưởng dài hạn theo năm.",
+      "sql_logic": "Dùng SUM(CASE WHEN [điều kiện năm nay] THEN giá_trị ELSE 0 END) và SUM(CASE WHEN [điều kiện cùng kỳ năm ngoái] THEN giá_trị ELSE 0 END). Tính % tăng trưởng: (NĂM_NAY - NĂM_NGOAI) * 100.0 / NULLIF(NĂM_NGOAI, 0).",
+      "conditions": "Kỳ hiện tại: MONTH() = MONTH(GETDATE()) AND YEAR() = YEAR(GETDATE()). Cùng kỳ năm ngoái: MONTH() = MONTH(GETDATE()) AND YEAR() = YEAR(GETDATE()) - 1. Dùng NULLIF để tránh chia cho 0 khi không có dữ liệu năm trước. Có thể áp dụng tương tự cho quý hoặc tuần.",
+      "date_mapping_examples": {
+        "tháng này so với cùng tháng năm ngoái": "MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) IN (YEAR(GETDATE()), YEAR(GETDATE()) - 1)",
+        "quý này so với cùng quý năm ngoái": "DATEPART(QUARTER, p.StartTime) = DATEPART(QUARTER, GETDATE()) AND YEAR(p.StartTime) IN (YEAR(GETDATE()), YEAR(GETDATE()) - 1)",
+        "năm nay so với năm ngoái": "YEAR(p.StartTime) IN (YEAR(GETDATE()), YEAR(GETDATE()) - 1)"
+      },
+      "few_shot_example": {
+        "user_query": "So sánh sản lượng tháng này với cùng tháng năm ngoái của toàn nhà máy.",
+        "expected_sql": "SELECT SUM(CASE WHEN MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) THEN p.Quantity ELSE 0 END) AS CurrentYear, SUM(CASE WHEN MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) - 1 THEN p.Quantity ELSE 0 END) AS PreviousYear, (SUM(CASE WHEN MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) THEN p.Quantity ELSE 0 END) - SUM(CASE WHEN MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) - 1 THEN p.Quantity ELSE 0 END)) * 100.0 / NULLIF(SUM(CASE WHEN MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) - 1 THEN p.Quantity ELSE 0 END), 0) AS YoYGrowthRate FROM PRODUCTIVITY p"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "temporal",
+      "metric_name": "Lọc theo ngày hôm nay đến một mốc thời gian tương lai (From Today Forward)",
+      "trigger_keywords": ["từ hôm nay đến", "trong N ngày tới", "sắp tới", "upcoming", "trong tương lai", "ngày tới", "N ngày nữa", "từ nay đến"],
+      "tables_involved": ["PRODUCTION_PLANS", "WORK_ASSIGNMENTS"]
+    },
+    "content": {
+      "description": "Lọc dữ liệu từ hôm nay đến một mốc thời gian trong tương lai. Thường dùng để tìm các kế hoạch sắp đến hạn hoặc lịch phân công trong vài ngày tới.",
+      "sql_logic": "Từ hôm nay đến N ngày tới: cột >= CAST(GETDATE() AS DATE) AND cột <= DATEADD(day, N, CAST(GETDATE() AS DATE)). Hoặc: cột BETWEEN CAST(GETDATE() AS DATE) AND DATEADD(day, N, CAST(GETDATE() AS DATE)).",
+      "conditions": "Dùng CAST(GETDATE() AS DATE) làm ngày bắt đầu để bao gồm cả hôm nay. Dùng DATEADD(day, N, ...) để tính ngày kết thúc. Ví dụ '3 ngày tới' nghĩa là N=3. '1 tuần tới' nghĩa là N=7. '1 tháng tới' dùng DATEADD(month, 1, GETDATE()).",
+      "date_mapping_examples": {
+        "trong 3 ngày tới": "cột BETWEEN CAST(GETDATE() AS DATE) AND DATEADD(day, 3, CAST(GETDATE() AS DATE))",
+        "trong 7 ngày tới": "cột BETWEEN CAST(GETDATE() AS DATE) AND DATEADD(day, 7, CAST(GETDATE() AS DATE))",
+        "trong 1 tuần tới": "cột BETWEEN CAST(GETDATE() AS DATE) AND DATEADD(week, 1, CAST(GETDATE() AS DATE))",
+        "trong 1 tháng tới": "cột BETWEEN CAST(GETDATE() AS DATE) AND DATEADD(month, 1, CAST(GETDATE() AS DATE))",
+        "từ hôm nay đến cuối tháng": "cột BETWEEN CAST(GETDATE() AS DATE) AND EOMONTH(GETDATE())"
+      },
+      "few_shot_example": {
+        "user_query": "Lịch phân công công việc trong 7 ngày tới là gì?",
+        "expected_sql": "SELECT wa.WorkDate, e.EmployeeName, wa.LineID, s.ShiftName FROM WORK_ASSIGNMENTS wa JOIN EMPLOYEES e ON wa.EmployeeID = e.EmployeeID JOIN SHIFTS s ON wa.ShiftID = s.ShiftID WHERE wa.WorkDate BETWEEN CAST(GETDATE() AS DATE) AND DATEADD(day, 7, CAST(GETDATE() AS DATE)) ORDER BY wa.WorkDate ASC, wa.LineID ASC"
+      }
+    }
+  }
+]

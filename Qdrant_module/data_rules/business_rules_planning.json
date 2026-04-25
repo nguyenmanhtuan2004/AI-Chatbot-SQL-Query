@@ -4,16 +4,16 @@
       "type": "business_rule",
       "domain": "planning",
       "metric_name": "Tiến độ hoàn thành kế hoạch (% Plan Completion)",
-      "trigger_keywords": ["tiến độ", "hoàn thành kế hoạch", "đạt chỉ tiêu", "% plan completion", "tỉ lệ đạt"],
+      "trigger_keywords": ["tiến độ", "hoàn thành kế hoạch", "đạt chỉ tiêu", "% plan completion", "tỉ lệ đạt", "đạt kế hoạch chưa", "hoàn thành bao nhiêu phần trăm"],
       "tables_involved": ["PRODUCTIVITY", "PRODUCTION_PLANS"]
     },
     "content": {
       "description": "Tính toán tỉ lệ phần trăm sản lượng thực tế đã sản xuất được so với mục tiêu kế hoạch đề ra (TargetQuantity).",
-      "sql_logic": "JOIN PRODUCTION_PLANS plan ON p.PlanID = plan.PlanID (hoặc join qua LineID, ProductID và WorkDate). Công thức: (SUM(p.Quantity) * 100.0) / NULLIF(MAX(plan.TargetQuantity), 0)",
-      "conditions": "Thường GROUP BY theo plan.PlanID. Sử dụng MAX(plan.TargetQuantity) làm mẫu số để tránh bị nhân lên (duplicate data) nếu phép JOIN xuất hiện quan hệ 1-N. Dùng NULLIF để tránh lỗi chia cho 0.",
+      "sql_logic": "JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID. Công thức: (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0). Lưu ý: KHÔNG dùng alias 'plan' vì đây là reserved keyword trong SQL Server, dùng 'pp' thay thế.",
+      "conditions": "Thường GROUP BY theo pp.PlanID. Sử dụng MAX(pp.TargetQuantity) làm mẫu số để tránh bị nhân lên (duplicate data) nếu phép JOIN xuất hiện quan hệ 1-N. Dùng NULLIF để tránh lỗi chia cho 0.",
       "few_shot_example": {
         "user_query": "Tiến độ hoàn thành kế hoạch của kế hoạch số 1 là bao nhiêu phần trăm?",
-        "expected_sql": "SELECT plan.PlanID, (SUM(p.Quantity) * 100.0) / NULLIF(MAX(plan.TargetQuantity), 0) AS PlanCompletionPercentage FROM PRODUCTIVITY p JOIN PRODUCTION_PLANS plan ON p.PlanID = plan.PlanID WHERE plan.PlanID = 1 GROUP BY plan.PlanID"
+        "expected_sql": "SELECT pp.PlanID, (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0) AS PlanCompletionPercentage FROM PRODUCTIVITY p JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID WHERE pp.PlanID = 1 GROUP BY pp.PlanID"
       }
     }
   },
@@ -22,16 +22,178 @@
       "type": "business_rule",
       "domain": "planning",
       "metric_name": "Tốc độ sản xuất theo giờ (Hourly Productivity / UPH)",
-      "trigger_keywords": ["năng suất theo giờ", "UPH", "sản lượng mỗi giờ", "tốc độ sản xuất", "sản lượng từng giờ"],
+      "trigger_keywords": ["năng suất theo giờ", "UPH", "sản lượng mỗi giờ", "tốc độ sản xuất", "sản lượng từng giờ", "output mỗi giờ", "sản lượng giờ nào cao nhất"],
       "tables_involved": ["PRODUCTIVITY"]
     },
     "content": {
       "description": "Tính tổng sản lượng sản xuất được gom nhóm theo từng khung giờ trong ngày để xem xét tốc độ sản xuất của chuyền (Units per Hour).",
-      "sql_logic": "Sử dụng hàm trích xuất giờ (DATEPART) từ cột EndTime. Công thức: SUM(p.Quantity)",
-      "conditions": "Bắt buộc phải GROUP BY DATEPART(HOUR, p.EndTime). Bổ sung thêm ORDER BY theo giờ để biểu đồ/dữ liệu hiển thị xuôi theo thời gian.",
+      "sql_logic": "Sử dụng hàm trích xuất giờ (DATEPART) từ cột EndTime. Công thức: SUM(p.Quantity). GROUP BY DATEPART(HOUR, p.EndTime).",
+      "conditions": "Bắt buộc phải GROUP BY DATEPART(HOUR, p.EndTime). Bổ sung thêm ORDER BY theo giờ để biểu đồ/dữ liệu hiển thị xuôi theo thời gian. LineID có dạng 'LINE_01', 'LINE_02',... khi người dùng nói 'chuyền 2' thì WHERE p.LineID = 'LINE_02'.",
       "few_shot_example": {
         "user_query": "Năng suất mỗi giờ của chuyền 2 hôm nay biến động như thế nào?",
-        "expected_sql": "SELECT DATEPART(HOUR, p.EndTime) AS ProductionHour, SUM(p.Quantity) AS UPH FROM PRODUCTIVITY p WHERE p.LineID = 'L02' AND CAST(p.StartTime AS DATE) = CAST(GETDATE() AS DATE) GROUP BY DATEPART(HOUR, p.EndTime) ORDER BY ProductionHour ASC"
+        "expected_sql": "SELECT DATEPART(HOUR, p.EndTime) AS ProductionHour, SUM(p.Quantity) AS UPH FROM PRODUCTIVITY p WHERE p.LineID = 'LINE_02' AND CAST(p.StartTime AS DATE) = CAST(GETDATE() AS DATE) GROUP BY DATEPART(HOUR, p.EndTime) ORDER BY ProductionHour ASC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "planning",
+      "metric_name": "Sản lượng còn thiếu so với kế hoạch (Remaining Quantity to Target)",
+      "trigger_keywords": ["còn thiếu bao nhiêu", "sản lượng còn lại", "thiếu chỉ tiêu", "còn phải làm thêm", "remaining quantity", "chưa đạt bao nhiêu", "còn cách mục tiêu"],
+      "tables_involved": ["PRODUCTIVITY", "PRODUCTION_PLANS"]
+    },
+    "content": {
+      "description": "Tính số lượng sản phẩm còn cần phải sản xuất thêm để đạt đủ chỉ tiêu kế hoạch. Công thức: TargetQuantity - Tổng sản lượng thực tế. Kết quả âm nghĩa là đã vượt chỉ tiêu.",
+      "sql_logic": "JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID. Công thức: MAX(pp.TargetQuantity) - SUM(p.Quantity) AS RemainingQuantity. Lưu ý: KHÔNG dùng alias 'plan' vì đây là reserved keyword trong SQL Server, dùng 'pp' thay thế.",
+      "conditions": "GROUP BY pp.PlanID. Sử dụng MAX(pp.TargetQuantity) để tránh nhân đôi dữ liệu do quan hệ 1-N. Nếu kết quả RemainingQuantity <= 0 nghĩa là kế hoạch đã hoàn thành hoặc vượt chỉ tiêu.",
+      "few_shot_example": {
+        "user_query": "Kế hoạch số 3 còn thiếu bao nhiêu sản phẩm để đạt chỉ tiêu?",
+        "expected_sql": "SELECT pp.PlanID, MAX(pp.TargetQuantity) AS TargetQuantity, SUM(p.Quantity) AS ActualQuantity, MAX(pp.TargetQuantity) - SUM(p.Quantity) AS RemainingQuantity FROM PRODUCTIVITY p JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID WHERE pp.PlanID = 3 GROUP BY pp.PlanID"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "planning",
+      "metric_name": "So sánh sản lượng giữa các dây chuyền (Output Comparison by Line)",
+      "trigger_keywords": ["chuyền nào sản xuất nhiều nhất", "so sánh sản lượng các chuyền", "sản lượng từng chuyền", "output by line", "xếp hạng chuyền theo sản lượng", "chuyền nào làm được nhiều nhất"],
+      "tables_involved": ["PRODUCTIVITY", "PRODUCTION_LINES"]
+    },
+    "content": {
+      "description": "Tổng hợp và so sánh tổng sản lượng thực tế giữa tất cả các dây chuyền để xếp hạng hiệu suất và phát hiện chuyền nào đang làm tốt hoặc kém nhất.",
+      "sql_logic": "JOIN PRODUCTION_LINES pl ON p.LineID = pl.LineID. Công thức: SUM(p.Quantity). GROUP BY p.LineID, pl.ManagerName, pl.Department.",
+      "conditions": "Bắt buộc GROUP BY p.LineID, pl.ManagerName, pl.Department. Bảng PRODUCTION_LINES KHÔNG có cột LineName, chỉ có LineID, ManagerName, Department. Nên ORDER BY TotalQuantity DESC để xếp hạng từ chuyền có sản lượng cao nhất.",
+      "few_shot_example": {
+        "user_query": "Trong tuần này, chuyền nào sản xuất được nhiều nhất?",
+        "expected_sql": "SELECT p.LineID, pl.ManagerName, pl.Department, SUM(p.Quantity) AS TotalQuantity FROM PRODUCTIVITY p JOIN PRODUCTION_LINES pl ON p.LineID = pl.LineID WHERE p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0) GROUP BY p.LineID, pl.ManagerName, pl.Department ORDER BY TotalQuantity DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "planning",
+      "metric_name": "Kế hoạch sắp hết hạn hoặc chậm tiến độ (Lagging / Near-Deadline Plans)",
+      "trigger_keywords": ["kế hoạch sắp deadline", "chậm tiến độ", "kế hoạch sắp hết hạn", "kế hoạch trễ hạn", "lagging plans", "kế hoạch cần chú ý", "kế hoạch chưa xong sắp tới hạn"],
+      "tables_involved": ["PRODUCTIVITY", "PRODUCTION_PLANS", "PRODUCTION_LINES", "PRODUCTS"]
+    },
+    "content": {
+      "description": "Tìm ra các kế hoạch sản xuất chưa hoàn thành (tỉ lệ < 100%) nhưng đang sắp đến ngày deadline. Dùng để cảnh báo và ưu tiên điều phối nguồn lực kịp thời.",
+      "sql_logic": "JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID JOIN PRODUCTION_LINES pl ON pp.LineID = pl.LineID JOIN PRODUCTS prd ON pp.ProductID = prd.ProductID. Tỉ lệ hoàn thành: (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0). Lưu ý: KHÔNG dùng alias 'plan', dùng 'pp'. Bảng PRODUCTION_LINES KHÔNG có cột LineName.",
+      "conditions": "Lọc pp.Deadline <= DATEADD(day, N, GETDATE()) để lấy các kế hoạch trong N ngày tới. Thêm HAVING để loại bỏ các kế hoạch đã đạt 100%. GROUP BY pp.PlanID, pp.Deadline, pp.LineID, pl.ManagerName, prd.ProductName.",
+      "few_shot_example": {
+        "user_query": "Những kế hoạch nào sắp hết hạn trong 3 ngày tới mà chưa hoàn thành?",
+        "expected_sql": "SELECT pp.PlanID, pp.LineID, pl.ManagerName, prd.ProductName, MAX(pp.TargetQuantity) AS TargetQuantity, SUM(p.Quantity) AS ActualQuantity, (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0) AS CompletionRate, MAX(pp.Deadline) AS Deadline FROM PRODUCTIVITY p JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID JOIN PRODUCTION_LINES pl ON pp.LineID = pl.LineID JOIN PRODUCTS prd ON pp.ProductID = prd.ProductID WHERE pp.Deadline <= DATEADD(day, 3, CAST(GETDATE() AS DATE)) GROUP BY pp.PlanID, pp.LineID, pl.ManagerName, prd.ProductName HAVING (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0) < 100 ORDER BY Deadline ASC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "planning",
+      "metric_name": "Xu hướng sản lượng theo ngày (Daily Output Trend)",
+      "trigger_keywords": ["sản lượng theo ngày", "xu hướng sản xuất", "sản lượng qua các ngày", "daily output", "biến động sản lượng", "sản lượng tăng hay giảm", "đồ thị sản lượng"],
+      "tables_involved": ["PRODUCTIVITY"]
+    },
+    "content": {
+      "description": "Tổng hợp sản lượng sản xuất thực tế theo từng ngày trong một khoảng thời gian để theo dõi xu hướng tăng/giảm. Dùng để vẽ biểu đồ xu hướng sản xuất (output trend chart).",
+      "sql_logic": "Sử dụng CAST(p.StartTime AS DATE) để nhóm theo ngày. Công thức: SUM(p.Quantity). GROUP BY CAST(p.StartTime AS DATE).",
+      "conditions": "Bắt buộc GROUP BY CAST(p.StartTime AS DATE) và ORDER BY WorkDate ASC để dữ liệu hiển thị đúng thứ tự thời gian. LineID có dạng 'LINE_01', 'LINE_02',... khi người dùng nói 'chuyền 1' thì WHERE p.LineID = 'LINE_01'.",
+      "few_shot_example": {
+        "user_query": "Sản lượng của chuyền 1 trong 10 ngày gần nhất biến động như thế nào?",
+        "expected_sql": "SELECT CAST(p.StartTime AS DATE) AS WorkDate, SUM(p.Quantity) AS TotalQuantity FROM PRODUCTIVITY p WHERE p.LineID = 'LINE_01' AND p.StartTime >= DATEADD(day, -10, CAST(GETDATE() AS DATE)) GROUP BY CAST(p.StartTime AS DATE) ORDER BY WorkDate ASC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "planning",
+      "metric_name": "Kế hoạch đã quá hạn (Overdue Plans)",
+      "trigger_keywords": ["kế hoạch quá hạn", "kế hoạch trễ", "overdue plans", "kế hoạch chưa xong đã qua deadline", "kế hoạch bị trễ", "kế hoạch hết hạn rồi", "kế hoạch tồn đọng"],
+      "tables_involved": ["PRODUCTIVITY", "PRODUCTION_PLANS", "PRODUCTION_LINES", "PRODUCTS"]
+    },
+    "content": {
+      "description": "Tìm các kế hoạch sản xuất đã qua ngày deadline nhưng vẫn chưa đạt 100% sản lượng mục tiêu. Đây là các kế hoạch tồn đọng cần được xử lý ưu tiên.",
+      "sql_logic": "JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID JOIN PRODUCTION_LINES pl ON pp.LineID = pl.LineID JOIN PRODUCTS prd ON pp.ProductID = prd.ProductID. Tỉ lệ hoàn thành: (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0). Lưu ý: KHÔNG dùng alias 'plan', dùng 'pp'.",
+      "conditions": "Lọc pp.Deadline < CAST(GETDATE() AS DATE) để lấy kế hoạch đã qua deadline. HAVING để loại bỏ kế hoạch đã đạt >= 100%. GROUP BY pp.PlanID, pp.Deadline, pp.LineID, pl.ManagerName, prd.ProductName. Bảng PRODUCTION_LINES KHÔNG có cột LineName.",
+      "few_shot_example": {
+        "user_query": "Những kế hoạch nào đã quá hạn mà vẫn chưa hoàn thành?",
+        "expected_sql": "SELECT pp.PlanID, pp.LineID, pl.ManagerName, prd.ProductName, MAX(pp.TargetQuantity) AS TargetQuantity, SUM(p.Quantity) AS ActualQuantity, (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0) AS CompletionRate, MAX(pp.Deadline) AS Deadline FROM PRODUCTIVITY p JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID JOIN PRODUCTION_LINES pl ON pp.LineID = pl.LineID JOIN PRODUCTS prd ON pp.ProductID = prd.ProductID WHERE pp.Deadline < CAST(GETDATE() AS DATE) GROUP BY pp.PlanID, pp.LineID, pl.ManagerName, prd.ProductName HAVING (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0) < 100 ORDER BY Deadline ASC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "planning",
+      "metric_name": "Sản lượng tích lũy theo ngày của một kế hoạch (Cumulative Output per Plan)",
+      "trigger_keywords": ["sản lượng tích lũy", "tiến độ từng ngày", "cumulative output", "sản lượng cộng dồn", "mỗi ngày làm thêm bao nhiêu", "tiến độ tích lũy kế hoạch", "đường cong tiến độ"],
+      "tables_involved": ["PRODUCTIVITY", "PRODUCTION_PLANS"]
+    },
+    "content": {
+      "description": "Hiển thị sản lượng tích lũy từng ngày của một kế hoạch sản xuất. Dùng để vẽ biểu đồ tiến độ (burndown / burnup chart) và theo dõi tốc độ hoàn thành kế hoạch.",
+      "sql_logic": "JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID. Sản lượng mỗi ngày: SUM(p.Quantity). Sản lượng tích lũy: dùng window function SUM(SUM(p.Quantity)) OVER (PARTITION BY p.PlanID ORDER BY CAST(p.StartTime AS DATE)). GROUP BY CAST(p.StartTime AS DATE), p.PlanID. Lưu ý: KHÔNG dùng alias 'plan', dùng 'pp'.",
+      "conditions": "Bắt buộc ORDER BY WorkDate ASC để dữ liệu tích lũy đúng thứ tự. Dùng window function SUM() OVER (ORDER BY) để tính cộng dồn. Lọc theo pp.PlanID để chỉ xem một kế hoạch cụ thể.",
+      "few_shot_example": {
+        "user_query": "Sản lượng tích lũy theo từng ngày của kế hoạch số 1 là bao nhiêu?",
+        "expected_sql": "SELECT CAST(p.StartTime AS DATE) AS WorkDate, SUM(p.Quantity) AS DailyQuantity, SUM(SUM(p.Quantity)) OVER (ORDER BY CAST(p.StartTime AS DATE)) AS CumulativeQuantity, MAX(pp.TargetQuantity) AS TargetQuantity FROM PRODUCTIVITY p JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID WHERE p.PlanID = 1 GROUP BY CAST(p.StartTime AS DATE) ORDER BY WorkDate ASC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "planning",
+      "metric_name": "Kế hoạch đã hoàn thành (Completed Plans)",
+      "trigger_keywords": ["kế hoạch đã xong", "kế hoạch hoàn thành", "kế hoạch đạt 100%", "completed plans", "kế hoạch nào đã đạt chỉ tiêu", "kế hoạch xong rồi", "kế hoạch vượt chỉ tiêu"],
+      "tables_involved": ["PRODUCTIVITY", "PRODUCTION_PLANS", "PRODUCTS", "PRODUCTION_LINES"]
+    },
+    "content": {
+      "description": "Lấy danh sách các kế hoạch sản xuất đã đạt hoặc vượt 100% mục tiêu. Dùng để báo cáo kết quả hoàn thành và nhận diện các chuyền/sản phẩm đang vượt kế hoạch.",
+      "sql_logic": "JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID JOIN PRODUCTS prd ON pp.ProductID = prd.ProductID JOIN PRODUCTION_LINES pl ON pp.LineID = pl.LineID. Tỉ lệ: (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0). HAVING >= 100.",
+      "conditions": "HAVING (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0) >= 100 để chỉ lấy kế hoạch đã đạt hoặc vượt chỉ tiêu. Lưu ý: KHÔNG dùng alias 'plan', dùng 'pp'. Bảng PRODUCTION_LINES KHÔNG có cột LineName.",
+      "few_shot_example": {
+        "user_query": "Những kế hoạch nào đã hoàn thành 100% chỉ tiêu?",
+        "expected_sql": "SELECT pp.PlanID, pp.LineID, pl.ManagerName, prd.ProductName, MAX(pp.TargetQuantity) AS TargetQuantity, SUM(p.Quantity) AS ActualQuantity, (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0) AS CompletionRate, MAX(pp.Deadline) AS Deadline FROM PRODUCTIVITY p JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID JOIN PRODUCTION_LINES pl ON pp.LineID = pl.LineID JOIN PRODUCTS prd ON pp.ProductID = prd.ProductID GROUP BY pp.PlanID, pp.LineID, pl.ManagerName, prd.ProductName HAVING (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0) >= 100 ORDER BY CompletionRate DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "planning",
+      "metric_name": "Sản lượng theo sản phẩm trong khoảng thời gian (Output by Product over Period)",
+      "trigger_keywords": ["sản lượng sản phẩm nào nhiều nhất", "sản lượng từng loại hàng", "output by product", "sản xuất bao nhiêu cái áo thun", "sản lượng theo mã hàng", "bao nhiêu sản phẩm đã làm ra", "sản lượng từng mã"],
+      "tables_involved": ["PRODUCTIVITY", "PRODUCTS"]
+    },
+    "content": {
+      "description": "Tổng hợp và xếp hạng tổng sản lượng theo từng loại sản phẩm trong một khoảng thời gian. Dùng để xác định sản phẩm nào đang được sản xuất nhiều nhất hoặc ít nhất.",
+      "sql_logic": "JOIN PRODUCTS prd ON p.ProductID = prd.ProductID. Công thức: SUM(p.Quantity). GROUP BY p.ProductID, prd.ProductName.",
+      "conditions": "Bắt buộc GROUP BY p.ProductID, prd.ProductName. ProductID trong DB có dạng 'TSHIRT_WHT', 'PANTS_KHK', 'SHIRT_BLU',... ORDER BY TotalQuantity DESC. Lọc thêm theo thời gian hoặc LineID nếu người dùng chỉ định.",
+      "few_shot_example": {
+        "user_query": "Trong tháng này, loại sản phẩm nào được sản xuất nhiều nhất?",
+        "expected_sql": "SELECT p.ProductID, prd.ProductName, SUM(p.Quantity) AS TotalQuantity FROM PRODUCTIVITY p JOIN PRODUCTS prd ON p.ProductID = prd.ProductID WHERE MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) GROUP BY p.ProductID, prd.ProductName ORDER BY TotalQuantity DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "planning",
+      "metric_name": "Tổng quan tất cả kế hoạch (All Plans Overview)",
+      "trigger_keywords": ["tất cả kế hoạch", "danh sách kế hoạch", "overview kế hoạch", "xem tất cả kế hoạch", "tổng quan kế hoạch", "liệt kê kế hoạch", "kế hoạch đang chạy"],
+      "tables_involved": ["PRODUCTION_PLANS", "PRODUCTIVITY", "PRODUCTS", "PRODUCTION_LINES"]
+    },
+    "content": {
+      "description": "Hiển thị tổng quan tất cả các kế hoạch sản xuất bao gồm: sản lượng mục tiêu, sản lượng thực tế, tỉ lệ hoàn thành, deadline và trạng thái. Dùng cho màn hình dashboard tổng quan.",
+      "sql_logic": "LEFT JOIN PRODUCTIVITY p ON p.PlanID = pp.PlanID. JOIN PRODUCTS prd ON pp.ProductID = prd.ProductID. JOIN PRODUCTION_LINES pl ON pp.LineID = pl.LineID. Tỉ lệ hoàn thành: (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0). Lưu ý: KHÔNG dùng alias 'plan', dùng 'pp'. Dùng LEFT JOIN để vẫn hiện kế hoạch chưa có sản lượng.",
+      "conditions": "Dùng LEFT JOIN để hiện cả kế hoạch chưa có dữ liệu PRODUCTIVITY (sản lượng = 0). GROUP BY pp.PlanID, pp.LineID, pl.ManagerName, pp.ProductID, prd.ProductName, pp.TargetQuantity, pp.Deadline. Bảng PRODUCTION_LINES KHÔNG có cột LineName.",
+      "few_shot_example": {
+        "user_query": "Cho tôi xem tổng quan tất cả các kế hoạch sản xuất hiện tại.",
+        "expected_sql": "SELECT pp.PlanID, pp.LineID, pl.ManagerName, prd.ProductName, pp.TargetQuantity, COALESCE(SUM(p.Quantity), 0) AS ActualQuantity, (COALESCE(SUM(p.Quantity), 0) * 100.0) / NULLIF(pp.TargetQuantity, 0) AS CompletionRate, pp.Deadline, CASE WHEN pp.Deadline < CAST(GETDATE() AS DATE) AND (COALESCE(SUM(p.Quantity), 0) * 100.0) / NULLIF(pp.TargetQuantity, 0) < 100 THEN N'Quá hạn' WHEN (COALESCE(SUM(p.Quantity), 0) * 100.0) / NULLIF(pp.TargetQuantity, 0) >= 100 THEN N'Hoàn thành' ELSE N'Đang thực hiện' END AS Status FROM PRODUCTION_PLANS pp LEFT JOIN PRODUCTIVITY p ON p.PlanID = pp.PlanID JOIN PRODUCTION_LINES pl ON pp.LineID = pl.LineID JOIN PRODUCTS prd ON pp.ProductID = prd.ProductID GROUP BY pp.PlanID, pp.LineID, pl.ManagerName, pp.ProductID, prd.ProductName, pp.TargetQuantity, pp.Deadline ORDER BY pp.Deadline ASC"
       }
     }
   }
