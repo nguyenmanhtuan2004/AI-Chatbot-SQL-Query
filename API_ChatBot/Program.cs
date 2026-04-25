@@ -3,6 +3,9 @@ using System.Threading.Tasks;
 using API_ChatBot.Data;
 using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
+using API_ChatBot.Services;
+using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
 using Qdrant.Client;
 namespace API_ChatBot
 {
@@ -31,6 +34,25 @@ namespace API_ChatBot
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
+
+            // Đăng ký Semantic Kernel với Vertex AI (dùng API Key qua query param)
+            var apiKey = builder.Configuration["API_KEY"]
+                         ?? builder.Configuration["GoogleAI:ApiKey"]
+                         ?? throw new InvalidOperationException("Thiếu API_KEY trong cấu hình.");
+
+            var rawRequestUrl = builder.Configuration["REQUEST_URL"]
+                                ?? throw new InvalidOperationException("Thiếu REQUEST_URL trong cấu hình.");
+
+            // Gắn ?key= vào URL nếu chưa có
+            var vertexUrl = rawRequestUrl.Contains("?key=")
+                ? rawRequestUrl
+                : $"{rawRequestUrl}?key={Uri.EscapeDataString(apiKey)}";
+
+            builder.Services.AddKernel();
+            builder.Services.AddSingleton<IChatCompletionService>(sp =>
+                new VertexAIGeminiService(
+                    sp.GetRequiredService<IHttpClientFactory>(),
+                    vertexUrl));
             builder.Services.AddHttpClient("", client =>
             {
                 client.Timeout = TimeSpan.FromMinutes(2);
@@ -59,15 +81,6 @@ namespace API_ChatBot
                 var port = int.Parse(builder.Configuration["Qdrant:Port"] ?? "6334");
                 return new QdrantClient(host, port);
             });
-            // Kiểm tra thông tin xác thực và in cảnh báo nếu thiếu
-            var apiKey = builder.Configuration["API_KEY"] ?? builder.Configuration["GoogleAI:ApiKey"];
-            var accessToken = builder.Configuration["GOOGLE_ACCESS_TOKEN"];
-            
-            if (string.IsNullOrWhiteSpace(apiKey) && string.IsNullOrWhiteSpace(accessToken))
-            {
-                Console.WriteLine("WARN: Thiếu thông tin xác thực (API_KEY hoặc GOOGLE_ACCESS_TOKEN). Chat sẽ không hoạt động cho đến khi được cấu hình.");
-            }
-
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowFrontend",
