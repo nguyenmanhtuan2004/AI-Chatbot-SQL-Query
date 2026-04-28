@@ -13,10 +13,12 @@ if creds_path and not os.path.isabs(creds_path):
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.join(BASE_DIR, creds_path)
 
 class Settings:
-    # Xác thực Google (Gemini)
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-    GEMINI_API_URL = os.getenv("GEMINI_API_URL")
-    
+    # Xác thực Google (Gemini / Vertex AI)
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("API_KEY")
+    GEMINI_API_URL = os.getenv("GEMINI_API_URL") or os.getenv("API_URL")
+    GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT", "ntb-text-to-sql")
+    GOOGLE_CLOUD_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "asia-southeast1")
+
     # Kết nối Qdrant
     QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
     
