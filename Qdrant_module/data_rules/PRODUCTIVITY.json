@@ -15,7 +15,8 @@
       {
         "name": "LineID",
         "type": "VARCHAR(50)",
-        "description": "Mã dây chuyền thực hiện sản xuất (Foreign Key). Dùng để phân nhóm tính tổng sản lượng theo dây chuyền."
+        "description": "Mã dây chuyền thực hiện sản xuất (Foreign Key). Dùng để phân nhóm tính tổng sản lượng theo dây chuyền. Khi người dùng nói 'chuyền 1', 'chuyền 2'... phải dùng 'LINE_01', 'LINE_02'...",
+        "example_values": "'LINE_01', 'LINE_02', 'LINE_03'"
       },
       {
         "name": "ProductID",

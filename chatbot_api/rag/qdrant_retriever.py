@@ -53,7 +53,13 @@ def get_context_from_qdrant(query: str, top_k: int = 3) -> str:
         raw_json = payload.get("raw_json", {}).get("content", {})
         
         if item_type == "table_schema":
-            cols = ", ".join([c.get("name", "") for c in raw_json.get("columns", [])])
+            col_parts = []
+            for c in raw_json.get("columns", []):
+                col_str = f"{c.get('name', '')} ({c.get('type', '')})"
+                if c.get("example_values"):
+                    col_str += f" -- ví dụ: {c['example_values']}"
+                col_parts.append(col_str)
+            cols = ", ".join(col_parts)
             rels = " ".join(raw_json.get("relationships", []))
             part = (
                 f"BẢNG {payload.get('table_name')} (Lĩnh vực: {payload.get('domain')}):\n"

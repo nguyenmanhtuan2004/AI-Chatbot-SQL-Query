@@ -15,7 +15,8 @@
       {
         "name": "LineID",
         "type": "VARCHAR(50)",
-        "description": "Mã dây chuyền xảy ra lỗi (Foreign Key). Dùng để phân nhóm tìm ra chuyền nào đang bị lỗi nhiều nhất."
+        "description": "Mã dây chuyền xảy ra lỗi (Foreign Key). Dùng để phân nhóm tìm ra chuyền nào đang bị lỗi nhiều nhất. Khi người dùng nói 'chuyền 1', 'chuyền 2'... phải dùng 'LINE_01', 'LINE_02'...",
+        "example_values": "'LINE_01', 'LINE_02', 'LINE_03'"
       },
       {
         "name": "ProductID",
