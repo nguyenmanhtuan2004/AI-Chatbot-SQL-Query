@@ -17,5 +17,5 @@ def after_generate(state: AgentState) -> str:
 
 def after_execute(state: AgentState) -> str:
     if state.get("sql_success") and state.get("sql_result") is not None:
-        return END
+        return "generate_answer"
     return "handle_error"

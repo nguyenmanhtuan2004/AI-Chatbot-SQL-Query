@@ -4,6 +4,7 @@ from agent.nodes import (
     retrieve_context_node, 
     generate_sql_node, 
     execute_sql_node, 
+    generate_answer_node,
     handle_error_node
 )
 from agent.edges import after_retrieve, after_generate, after_execute
@@ -15,6 +16,7 @@ workflow = StateGraph(AgentState)
 workflow.add_node("retrieve_context", retrieve_context_node)
 workflow.add_node("generate_sql", generate_sql_node)
 workflow.add_node("execute_sql", execute_sql_node)
+workflow.add_node("generate_answer", generate_answer_node)
 workflow.add_node("handle_error", handle_error_node)
 
 # 3. Định nghĩa các luồng (edges)
@@ -45,10 +47,13 @@ workflow.add_conditional_edges(
     "execute_sql",
     after_execute,
     {
-        END: END,
+        "generate_answer": "generate_answer",
         "handle_error": "handle_error"
     }
 )
+
+# Sau khi sinh câu trả lời → kết thúc
+workflow.add_edge("generate_answer", END)
 
 # handle_error dẫn đến kết thúc
 workflow.add_edge("handle_error", END)

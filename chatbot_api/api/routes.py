@@ -23,6 +23,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     success: bool
     query: str
+    answer: Optional[str] = None
     generated_sql: Optional[str] = None
     sql_result: Optional[List[Any]] = None
     context: Optional[str] = None
@@ -62,8 +63,10 @@ async def chat(req: ChatRequest):
         result = agent_app.invoke(initial_state)
 
         # Serialize dữ liệu trả về (Decimal, date...)
+        # Dùng `is not None` thay vì `if raw_data` để phân biệt
+        # "SQL trả về 0 hàng" ([] → []) với "SQL chưa chạy" (None → None)
         raw_data = result.get("sql_result")
-        if raw_data:
+        if raw_data is not None:
             safe_data = json.loads(json.dumps(raw_data, default=_serialize))
         else:
             safe_data = None
@@ -71,6 +74,7 @@ async def chat(req: ChatRequest):
         return ChatResponse(
             success=result.get("sql_success", False),
             query=req.query,
+            answer=result.get("answer"),
             generated_sql=result.get("generated_sql"),
             sql_result=safe_data,
             context=result.get("context"),

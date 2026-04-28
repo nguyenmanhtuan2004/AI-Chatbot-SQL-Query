@@ -5,6 +5,7 @@ class AgentState(TypedDict):
     context: Optional[str]
     generated_sql: Optional[str]
     sql_result: Optional[List]
+    answer: Optional[str]
     error: Optional[str]
     sql_success: bool
     retry_count: int

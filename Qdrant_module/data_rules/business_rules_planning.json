@@ -80,12 +80,30 @@
       "tables_involved": ["PRODUCTIVITY", "PRODUCTION_PLANS", "PRODUCTION_LINES", "PRODUCTS"]
     },
     "content": {
-      "description": "Tìm ra các kế hoạch sản xuất chưa hoàn thành (tỉ lệ < 100%) nhưng đang sắp đến ngày deadline. Dùng để cảnh báo và ưu tiên điều phối nguồn lực kịp thời.",
-      "sql_logic": "JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID JOIN PRODUCTION_LINES pl ON pp.LineID = pl.LineID JOIN PRODUCTS prd ON pp.ProductID = prd.ProductID. Tỉ lệ hoàn thành: (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0). Lưu ý: KHÔNG dùng alias 'plan', dùng 'pp'. Bảng PRODUCTION_LINES KHÔNG có cột LineName.",
-      "conditions": "Lọc pp.Deadline <= DATEADD(day, N, GETDATE()) để lấy các kế hoạch trong N ngày tới. Thêm HAVING để loại bỏ các kế hoạch đã đạt 100%. GROUP BY pp.PlanID, pp.Deadline, pp.LineID, pl.ManagerName, prd.ProductName.",
+      "description": "Tìm ra các kế hoạch sản xuất chưa hoàn thành (tỉ lệ < 100%) nhưng đang sắp đến ngày deadline. Dùng để cảnh báo và ưu tiên điều phối nguồn lực kịp thời. Chỉ dùng rule này khi người dùng chỉ định rõ số ngày (ví dụ: 'trong 3 ngày tới', 'trong 7 ngày tới').",
+      "sql_logic": "JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID JOIN PRODUCTION_LINES pl ON pp.LineID = pl.LineID JOIN PRODUCTS prd ON pp.ProductID = prd.ProductID. Tỉ lệ hoàn thành: (COALESCE(SUM(p.Quantity), 0) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0). Lưu ý: KHÔNG dùng alias 'plan', dùng 'pp'. Bảng PRODUCTION_LINES KHÔNG có cột LineName. Thêm cột DATEDIFF(day, CAST(GETDATE() AS DATE), MAX(pp.Deadline)) AS DaysToDeadline để hiển thị số ngày còn lại.",
+      "conditions": "Lọc pp.Deadline <= DATEADD(day, N, CAST(GETDATE() AS DATE)) AND pp.Deadline >= CAST(GETDATE() AS DATE) để chỉ lấy kế hoạch chưa quá hạn. Thêm HAVING để loại bỏ các kế hoạch đã đạt 100%. GROUP BY pp.PlanID, pp.LineID, pl.ManagerName, prd.ProductName. Dùng COALESCE(SUM(p.Quantity), 0) để tránh NULL.",
       "few_shot_example": {
-        "user_query": "Những kế hoạch nào sắp hết hạn trong 3 ngày tới mà chưa hoàn thành?",
-        "expected_sql": "SELECT pp.PlanID, pp.LineID, pl.ManagerName, prd.ProductName, MAX(pp.TargetQuantity) AS TargetQuantity, SUM(p.Quantity) AS ActualQuantity, (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0) AS CompletionRate, MAX(pp.Deadline) AS Deadline FROM PRODUCTIVITY p JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID JOIN PRODUCTION_LINES pl ON pp.LineID = pl.LineID JOIN PRODUCTS prd ON pp.ProductID = prd.ProductID WHERE pp.Deadline <= DATEADD(day, 3, CAST(GETDATE() AS DATE)) GROUP BY pp.PlanID, pp.LineID, pl.ManagerName, prd.ProductName HAVING (SUM(p.Quantity) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0) < 100 ORDER BY Deadline ASC"
+        "user_query": "Những kế hoạch nào sắp hết hạn trong 7 ngày tới mà chưa hoàn thành?",
+        "expected_sql": "SELECT TOP 10 pp.PlanID, pp.LineID, pl.ManagerName, prd.ProductName, MAX(pp.TargetQuantity) AS TargetQuantity, COALESCE(SUM(p.Quantity), 0) AS ActualQuantity, (COALESCE(SUM(p.Quantity), 0) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0) AS CompletionRate, MAX(pp.Deadline) AS Deadline, DATEDIFF(day, CAST(GETDATE() AS DATE), MAX(pp.Deadline)) AS DaysToDeadline FROM PRODUCTIVITY AS p JOIN PRODUCTION_PLANS AS pp ON p.PlanID = pp.PlanID JOIN PRODUCTION_LINES AS pl ON pp.LineID = pl.LineID JOIN PRODUCTS AS prd ON pp.ProductID = prd.ProductID WHERE pp.Deadline >= CAST(GETDATE() AS DATE) AND pp.Deadline <= DATEADD(day, 7, CAST(GETDATE() AS DATE)) GROUP BY pp.PlanID, pp.LineID, pl.ManagerName, prd.ProductName HAVING (COALESCE(SUM(p.Quantity), 0) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0) < 100 ORDER BY Deadline ASC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "planning",
+      "metric_name": "Kế hoạch sắp trễ deadline nhất (Most Urgent Unfinished Plans)",
+      "trigger_keywords": ["sắp trễ deadline nhất", "kế hoạch nguy cơ trễ cao nhất", "chuyền nào sắp trễ nhất", "sắp trễ nhất", "nguy cơ trễ deadline", "kế hoạch khẩn cấp nhất", "deadline gần nhất chưa xong", "chuyền nào sắp không kịp", "cần ưu tiên hoàn thành gấp"],
+      "tables_involved": ["PRODUCTIVITY", "PRODUCTION_PLANS", "PRODUCTION_LINES", "PRODUCTS"]
+    },
+    "content": {
+      "description": "Tìm và xếp hạng tất cả kế hoạch sản xuất chưa hoàn thành theo mức độ khẩn cấp (deadline gần nhất lên đầu). Không giới hạn số ngày — hiển thị TẤT CẢ các kế hoạch tương lai chưa xong để người dùng biết cần ưu tiên cái nào. Thêm cột DaysToDeadline (số ngày còn lại) để dễ đánh giá mức độ khẩn cấp.",
+      "sql_logic": "JOIN PRODUCTION_PLANS pp ON p.PlanID = pp.PlanID JOIN PRODUCTION_LINES pl ON pp.LineID = pl.LineID JOIN PRODUCTS prd ON pp.ProductID = prd.ProductID. Tỉ lệ hoàn thành: (COALESCE(SUM(p.Quantity), 0) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0). Thêm DATEDIFF(day, CAST(GETDATE() AS DATE), MAX(pp.Deadline)) AS DaysToDeadline. Lưu ý: KHÔNG dùng alias 'plan', dùng 'pp'. Bảng PRODUCTION_LINES KHÔNG có cột LineName.",
+      "conditions": "Bắt buộc lọc pp.Deadline >= CAST(GETDATE() AS DATE) để CHỈ lấy kế hoạch chưa quá hạn (phân biệt với 'kế hoạch đã trễ'). KHÔNG thêm điều kiện giới hạn số ngày trừ khi người dùng yêu cầu cụ thể. HAVING loại bỏ kế hoạch đã đạt 100%. ORDER BY Deadline ASC để kế hoạch đến hạn sớm nhất hiển thị đầu tiên. Dùng COALESCE(SUM(p.Quantity), 0) để tránh NULL.",
+      "few_shot_example": {
+        "user_query": "Chuyền nào đang sắp trễ deadline nhất?",
+        "expected_sql": "SELECT TOP 10 pp.PlanID, pp.LineID, pl.ManagerName, prd.ProductName, MAX(pp.TargetQuantity) AS TargetQuantity, COALESCE(SUM(p.Quantity), 0) AS ActualQuantity, (COALESCE(SUM(p.Quantity), 0) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0) AS CompletionRate, MAX(pp.Deadline) AS Deadline, DATEDIFF(day, CAST(GETDATE() AS DATE), MAX(pp.Deadline)) AS DaysToDeadline FROM PRODUCTIVITY AS p JOIN PRODUCTION_PLANS AS pp ON p.PlanID = pp.PlanID JOIN PRODUCTION_LINES AS pl ON pp.LineID = pl.LineID JOIN PRODUCTS AS prd ON pp.ProductID = prd.ProductID WHERE pp.Deadline >= CAST(GETDATE() AS DATE) GROUP BY pp.PlanID, pp.LineID, pl.ManagerName, prd.ProductName HAVING (COALESCE(SUM(p.Quantity), 0) * 100.0) / NULLIF(MAX(pp.TargetQuantity), 0) < 100 ORDER BY Deadline ASC"
       }
     }
   },
@@ -176,6 +194,41 @@
       "few_shot_example": {
         "user_query": "Trong tháng này, loại sản phẩm nào được sản xuất nhiều nhất?",
         "expected_sql": "SELECT p.ProductID, prd.ProductName, SUM(p.Quantity) AS TotalQuantity FROM PRODUCTIVITY p JOIN PRODUCTS prd ON p.ProductID = prd.ProductID WHERE MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) GROUP BY p.ProductID, prd.ProductName ORDER BY TotalQuantity DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "planning",
+      "metric_name": "Chuyền hoàn thành kế hoạch tốt nhất (Best Plan Completion by Line)",
+      "trigger_keywords": ["chuyền nào hoàn thành kế hoạch tốt nhất", "chuyền đạt kế hoạch cao nhất", "xếp hạng hoàn thành kế hoạch", "chuyền nào đạt chỉ tiêu tốt nhất", "tỉ lệ hoàn thành kế hoạch theo chuyền", "best plan completion", "completion rate by line", "chuyền nào hoàn thành tốt nhất tuần này", "chuyền nào đang đạt kế hoạch tốt nhất"],
+      "tables_involved": ["PRODUCTIVITY", "PRODUCTION_PLANS", "PRODUCTION_LINES"]
+    },
+    "content": {
+      "description": "Xếp hạng các dây chuyền theo tỉ lệ hoàn thành kế hoạch sản xuất (sản lượng thực tế / mục tiêu kế hoạch). Một chuyền có thể có nhiều kế hoạch (PlanID) khác nhau, vì vậy cần tổng hợp theo hai bước: trước tiên tính theo từng (LineID, PlanID), sau đó mới gộp lên LineID để tránh nhân đôi TargetQuantity. Dùng để so sánh và khen thưởng chuyền đang thực hiện tốt nhất.",
+      "sql_logic": "Dùng subquery tính theo (LineID, PlanID): SUM(p.Quantity) AS ActualQuantity, MAX(pp.TargetQuantity) AS TargetQuantity. Sau đó GROUP BY LineID ở outer query để tổng hợp. Công thức: (SUM(sub.ActualQuantity) * 100.0) / NULLIF(SUM(sub.TargetQuantity), 0). Bắt buộc dùng MAX(pp.TargetQuantity) trong subquery để tránh nhân đôi do quan hệ 1-N giữa PRODUCTION_PLANS và PRODUCTIVITY. JOIN PRODUCTION_LINES pl ON sub.LineID = pl.LineID ở outer query.",
+      "conditions": "Phải dùng subquery hai tầng: tầng trong GROUP BY (p.LineID, p.PlanID), tầng ngoài GROUP BY (sub.LineID, pl.ManagerName, pl.Department). Bảng PRODUCTION_LINES KHÔNG có cột LineName. Thêm điều kiện thời gian vào subquery (WHERE p.StartTime ...). ORDER BY CompletionRate DESC để chuyền tốt nhất lên đầu. Tuần này = p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0) AND p.StartTime < DATEADD(week, DATEDIFF(week, 0, GETDATE()) + 1, 0).",
+      "few_shot_example": {
+        "user_query": "Chuyền nào đang hoàn thành kế hoạch tốt nhất tuần này?",
+        "expected_sql": "SELECT TOP 10 sub.LineID, pl.ManagerName, pl.Department, SUM(sub.ActualQuantity) AS TotalActualQuantity, SUM(sub.TargetQuantity) AS TotalTargetQuantity, (SUM(sub.ActualQuantity) * 100.0) / NULLIF(SUM(sub.TargetQuantity), 0) AS CompletionRate FROM (SELECT p.LineID, p.PlanID, SUM(p.Quantity) AS ActualQuantity, MAX(pp.TargetQuantity) AS TargetQuantity FROM PRODUCTIVITY AS p JOIN PRODUCTION_PLANS AS pp ON p.PlanID = pp.PlanID WHERE p.StartTime >= DATEADD(week, DATEDIFF(week, 0, GETDATE()), 0) AND p.StartTime < DATEADD(week, DATEDIFF(week, 0, GETDATE()) + 1, 0) GROUP BY p.LineID, p.PlanID) AS sub JOIN PRODUCTION_LINES AS pl ON sub.LineID = pl.LineID GROUP BY sub.LineID, pl.ManagerName, pl.Department ORDER BY CompletionRate DESC"
+      }
+    }
+  },
+  {
+    "metadata": {
+      "type": "business_rule",
+      "domain": "planning",
+      "metric_name": "Chuyền hiệu suất tốt nhất và kém nhất (Best and Worst Line Performance)",
+      "trigger_keywords": ["hiệu suất tốt nhất và kém nhất", "chuyền tốt nhất chuyền kém nhất", "so sánh chuyền tốt và xấu", "chuyền nào tốt nhất chuyền nào kém nhất", "best and worst line", "top và bottom chuyền", "chuyền đứng đầu và đứng cuối"]
+    },
+    "content": {
+      "description": "Tìm đồng thời chuyền có hiệu suất chất lượng tốt nhất (tỉ lệ lỗi thấp nhất) và kém nhất (tỉ lệ lỗi cao nhất) trong một khoảng thời gian. Trả về 2 dòng kết quả: 1 dòng nhãn 'Tốt nhất' và 1 dòng nhãn 'Kém nhất'.",
+      "sql_logic": "Dùng UNION ALL để ghép TOP 1 tốt nhất và TOP 1 kém nhất. QUAN TRỌNG: KHÔNG được đặt ORDER BY trực tiếp trong ngoặc (...) của UNION ALL — phải bọc từng SELECT trong một subquery có alias riêng: SELECT * FROM (SELECT TOP 1 ... ORDER BY DefectRate ASC) AS best UNION ALL SELECT * FROM (SELECT TOP 1 ... ORDER BY DefectRate DESC) AS worst. Mỗi subquery dùng LEFT JOIN DEFECTS và COALESCE như quy tắc chất lượng.",
+      "conditions": "Bắt buộc dùng cú pháp SELECT * FROM (...) AS alias cho mỗi nhánh UNION ALL. Bảng PRODUCTION_LINES KHÔNG có cột LineName. Dùng COALESCE(SUM(d.DefectCount), 0) để tránh NULL. Thêm cột nhãn N'Tốt nhất' / N'Kém nhất' để phân biệt 2 dòng kết quả.",
+      "few_shot_example": {
+        "user_query": "Chuyền nào đang có hiệu suất tốt nhất và kém nhất tháng này?",
+        "expected_sql": "SELECT * FROM (SELECT TOP 1 N'Tốt nhất' AS LoaiHieuSuat, p.LineID, pl.ManagerName, pl.Department, SUM(p.Quantity) AS TotalQuantity, COALESCE(SUM(d.DefectCount), 0) AS TotalDefects, (COALESCE(SUM(d.DefectCount), 0) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100 AS DefectRate FROM PRODUCTIVITY AS p LEFT JOIN DEFECTS AS d ON p.ID = d.ProductivityID JOIN PRODUCTION_LINES AS pl ON p.LineID = pl.LineID WHERE MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) GROUP BY p.LineID, pl.ManagerName, pl.Department ORDER BY DefectRate ASC) AS best UNION ALL SELECT * FROM (SELECT TOP 1 N'Kém nhất' AS LoaiHieuSuat, p.LineID, pl.ManagerName, pl.Department, SUM(p.Quantity) AS TotalQuantity, COALESCE(SUM(d.DefectCount), 0) AS TotalDefects, (COALESCE(SUM(d.DefectCount), 0) * 1.0 / NULLIF(SUM(p.Quantity), 0)) * 100 AS DefectRate FROM PRODUCTIVITY AS p LEFT JOIN DEFECTS AS d ON p.ID = d.ProductivityID JOIN PRODUCTION_LINES AS pl ON p.LineID = pl.LineID WHERE MONTH(p.StartTime) = MONTH(GETDATE()) AND YEAR(p.StartTime) = YEAR(GETDATE()) GROUP BY p.LineID, pl.ManagerName, pl.Department ORDER BY DefectRate DESC) AS worst"
       }
     }
   },
