@@ -5,8 +5,6 @@ from agent.sql_generator import generate_sql
 from tools.sql_executor import execute_sql_query
 
 # Khởi tạo mô hình ngôn ngữ
-llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0)
-
 def retrieve_context_node(state: AgentState):
     """Lấy dữ liệu từ điển (schema & business rules) từ Qdrant."""
     query = state["query"]
