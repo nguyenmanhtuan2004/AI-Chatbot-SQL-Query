@@ -1,5 +1,7 @@
 from agent.graph import app
 import json
+from decimal import Decimal
+from datetime import date, datetime
 
 def run_test(query: str):
     print(f"\n" + "="*50)
@@ -11,7 +13,7 @@ def run_test(query: str):
         "query": query,
         "context": None,
         "generated_sql": None,
-        "data": None,
+        "sql_result": None,
         "error": None,
         "sql_success": False,
         "retry_count": 0
@@ -37,6 +39,8 @@ def run_test(query: str):
         def default(self, obj):
             if isinstance(obj, Decimal):
                 return float(obj)
+            if isinstance(obj, (date, datetime)):
+                return obj.isoformat()
             return super().default(obj)
 
 
@@ -49,7 +53,7 @@ def run_test(query: str):
 
 if __name__ == "__main__":
     # Test 1: Câu hỏi hợp lệ
-    run_test("Tỉ lệ lỗi của chuyền 1 là bao nhiêu?")
+    run_test("sản lượng chuyền 1 ngày 22 tháng 4 năm 2026?")
     
     # Test 2: Câu hỏi không có trong nghiệp vụ (Để test nhánh Error)
     # run_test("Giá vàng hôm nay bao nhiêu?")
