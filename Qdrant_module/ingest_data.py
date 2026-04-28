@@ -4,16 +4,20 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
 import vertexai
 from vertexai.language_models import TextEmbeddingModel
+from google.oauth2 import service_account
 
 # 1. Khởi tạo Clients
 qdrant = QdrantClient(url="http://localhost:6333")
 
-# Đã bỏ qua việc dùng file JSON Key.
-# Hệ thống sẽ tự động nhận diện xác thực thông qua lệnh: gcloud auth application-default login
+# Lấy đường dẫn tuyệt đối đến file service account key
+SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(__file__), '..', 'chatbot_api', 'ntb-text-to-sql-9d0c44f85945.json')
+
+# Khởi tạo xác thực
+credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE)
 
 # Khởi tạo Vertex AI
 # Bạn cần thay đổi <YOUR_PROJECT_ID> thành Project ID thực tế trên Google Cloud của bạn
-vertexai.init(project="ntb-text-to-sql", location="asia-southeast1") 
+vertexai.init(project="ntb-text-to-sql", location="asia-southeast1", credentials=credentials) 
 # Model hỗ trợ tiếng Việt tốt nhất hiện nay của Google
 embedding_model = TextEmbeddingModel.from_pretrained("text-multilingual-embedding-002")
 
