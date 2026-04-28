@@ -3,8 +3,8 @@
 # ========================
 venv/
 .venv/
-__pycache__/
-*.py[cod]
+**/__pycache__/
+**/*.py[cod]
 *.pyo
 *.pyd
 *.egg
@@ -32,22 +32,23 @@ htmlcov/
 *.userosscache
 *.sln.docstates
 *.csproj.user
+*.nupkg
+TestResults/
 
 # ========================
 # Node.js / Next.js
 # ========================
 node_modules/
-/.pnp
+.pnp
 .pnp.*
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-/coverage
-/.next/
-/out/
-/build
+coverage/
+**/.next/
+**/out/
 *.tsbuildinfo
 next-env.d.ts
 npm-debug.log*
@@ -60,7 +61,11 @@ yarn-error.log*
 # ========================
 .env
 .env.*
+.env.local
+.env.*.local
 appsettings.Development.json
+appsettings.*.json
+!appsettings.json
 
 # GCP Service Account Keys
 ntb-text-to-sql-*.json
@@ -74,6 +79,8 @@ ntb-text-to-sql-*.json
 .vscode/
 .idea/
 *.pem
+*.pfx
+*.p12
 
 # ========================
 # OS Files
@@ -81,6 +88,7 @@ ntb-text-to-sql-*.json
 Thumbs.db
 Desktop.ini
 .DS_Store
+ehthumbs.db
 
 # ========================
 # Docker
@@ -88,6 +96,13 @@ Desktop.ini
 .dockerignore
 
 # ========================
+# Logs
+# ========================
+*.log
+logs/
+
+# ========================
 # Misc
 # ========================
 .agent/
+.cursor/
