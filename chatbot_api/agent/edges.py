@@ -18,4 +18,8 @@ def after_generate(state: AgentState) -> str:
 def after_execute(state: AgentState) -> str:
     if state.get("sql_success") and state.get("sql_result") is not None:
         return "generate_answer"
+    
+    retry_count = state.get("retry_count", 0)
+    if retry_count < 2:
+        return "generate_sql"
     return "handle_error"

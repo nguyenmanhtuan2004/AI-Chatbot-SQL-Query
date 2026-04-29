@@ -53,7 +53,7 @@ def run_test(query: str):
 
 if __name__ == "__main__":
     # Test 1: Câu hỏi hợp lệ
-    run_test("sản lượng chuyền 1 tháng 4 năm 2026?")
+    run_test("Chuyền nào sắp trễ deadline")
     
     # Test 2: Câu hỏi không có trong nghiệp vụ (Để test nhánh Error)
     # run_test("Giá vàng hôm nay bao nhiêu?")

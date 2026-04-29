@@ -22,7 +22,7 @@ except Exception as e:
     print(f"Cảnh báo: Không thể khởi tạo Vertex AI Embeddings. Lỗi: {e}")
     embeddings = None
 
-def get_context_from_qdrant(query: str, top_k: int = 3) -> str:
+def get_context_from_qdrant(query: str, top_k: int = 5) -> str:
     """
     Tìm kiếm và định dạng Context từ Qdrant cho câu hỏi.
     Sử dụng trực tiếp Qdrant Client thay vì LangChain VectorStore để tự do đọc Payload custom.

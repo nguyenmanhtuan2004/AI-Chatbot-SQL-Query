@@ -48,6 +48,7 @@ workflow.add_conditional_edges(
     after_execute,
     {
         "generate_answer": "generate_answer",
+        "generate_sql": "generate_sql",
         "handle_error": "handle_error"
     }
 )

@@ -1,5 +1,4 @@
 import json
-from langchain_google_genai import ChatGoogleGenerativeAI
 from agent.state import AgentState
 from rag.qdrant_retriever import get_context_from_qdrant
 from agent.sql_generator import generate_sql, llm_model
@@ -21,12 +20,21 @@ def generate_sql_node(state: AgentState):
     """Sử dụng SQL Generator để sinh ra mã SQL từ câu hỏi và context."""
     query = state["query"]
     context = state.get("context", "")
+    previous_sql = state.get("generated_sql")
+    error_msg = state.get("error")
+    retry_count = state.get("retry_count", 0)
     
     if not context:
         return {"sql_success": False, "error": "Thiếu ngữ cảnh để sinh SQL."}
     
+    is_retry = (retry_count > 0 and previous_sql and error_msg)
+    
     try:
-        sql = generate_sql(query, context)
+        if is_retry:
+            sql = generate_sql(query, context, previous_sql, error_msg)
+        else:
+            sql = generate_sql(query, context)
+            
         if sql.startswith("-- NO"):
             return {"generated_sql": sql, "sql_success": False, "error": "LLM không thể tạo câu truy vấn phù hợp."}
         return {"generated_sql": sql, "sql_success": True, "error": None}
@@ -35,11 +43,12 @@ def generate_sql_node(state: AgentState):
 
 def execute_sql_node(state: AgentState):
     sql = state.get("generated_sql")
+    retry_count = state.get("retry_count", 0)
     try:
         data = execute_sql_query(sql)   # giả sử trả về list of rows
-        return {"sql_result": data, "sql_success": True, "error": None}
+        return {"sql_result": data, "sql_success": True, "error": None, "retry_count": retry_count}
     except Exception as e:
-        return {"sql_success": False, "error": f"Lỗi thực thi SQL: {str(e)}"}
+        return {"sql_success": False, "error": f"Lỗi thực thi SQL: {str(e)}", "retry_count": retry_count + 1}
 
 _ANSWER_SYSTEM_PROMPT = """
 # ROLE
