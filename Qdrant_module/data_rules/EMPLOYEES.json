@@ -10,17 +10,20 @@
       {
         "name": "EmployeeID",
         "type": "INT",
-        "description": "Mã định danh nhân sự (Khóa chính, tự tăng). Thường được dùng làm tham chiếu cấp phát thẻ nhân viên."
+        "description": "Mã định danh nhân sự (Khóa chính, tự tăng). Thường được dùng làm tham chiếu cấp phát thẻ nhân viên.",
+        "example_values": "1, 2, 3"
       },
       {
         "name": "EmployeeName",
         "type": "NVARCHAR(100)",
-        "description": "Họ và tên đầy đủ của nhân sự / người lao động."
+        "description": "Họ và tên đầy đủ của nhân sự / người lao động.",
+        "example_values": "N'Nguyễn Văn A', N'Trần Thị B', N'Lê Văn C'"
       },
       {
         "name": "Position",
         "type": "NVARCHAR(100)",
-        "description": "Vị trí làm việc hoặc chức vụ (Ví dụ: Công nhân, Tổ trưởng, Quản lý đốc công)."
+        "description": "Vị trí làm việc hoặc chức vụ (Ví dụ: Công nhân, Tổ trưởng, Quản lý đốc công).",
+        "example_values": "N'Tổ trưởng', N'Thợ may', N'KCS'"
       },
       {
         "name": "CreatedAt",

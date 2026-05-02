@@ -10,7 +10,8 @@
       {
         "name": "ID",
         "type": "INT",
-        "description": "Mã bản ghi năng suất (Khóa chính)."
+        "description": "Mã bản ghi năng suất (Khóa chính).",
+        "example_values": "1, 2, 3"
       },
       {
         "name": "LineID",
@@ -21,32 +22,38 @@
       {
         "name": "ProductID",
         "type": "VARCHAR(50)",
-        "description": "Mã sản phẩm được làm ra (Foreign Key). Dùng để phân nhóm tính toán theo loại mã hàng."
+        "description": "Mã sản phẩm được làm ra (Foreign Key). Dùng để phân nhóm tính toán theo loại mã hàng.",
+        "example_values": "'TSHIRT_WHT', 'PANTS_KHK', 'SHIRT_BLU'"
       },
       {
         "name": "PlanID",
         "type": "INT",
-        "description": "Mã kế hoạch sản xuất tương ứng (Foreign Key). Tham chiếu tới kế hoạch sản xuất để so sánh mục tiêu vs thực tế."
+        "description": "Mã kế hoạch sản xuất tương ứng (Foreign Key). Tham chiếu tới kế hoạch sản xuất để so sánh mục tiêu vs thực tế.",
+        "example_values": "1, 2, 3"
       },
       {
         "name": "Quantity",
         "type": "INT",
-        "description": "Số lượng thành phẩm / sản phẩm làm ra thực tế trong lần ghi nhận này."
+        "description": "Số lượng thành phẩm / sản phẩm làm ra thực tế trong lần ghi nhận này.",
+        "example_values": "800, 450, 600"
       },
       {
         "name": "StartTime",
         "type": "DATETIME",
-        "description": "Thời gian bắt đầu log dữ liệu sản lượng."
+        "description": "Thời gian bắt đầu log dữ liệu sản lượng.",
+        "example_values": "'2026-04-22T06:00:00', '2026-04-22T14:00:00'"
       },
       {
         "name": "EndTime",
         "type": "DATETIME",
-        "description": "Thời gian kết thúc log dữ liệu. Có thể dùng để tính toán năng suất theo giờ."
+        "description": "Thời gian kết thúc log dữ liệu. Có thể dùng để tính toán năng suất theo giờ.",
+        "example_values": "'2026-04-22T14:00:00', '2026-04-22T22:00:00'"
       },
       {
         "name": "ShiftID",
         "type": "INT",
-        "description": "Mã ca làm việc (Foreign Key). Cho biết sản lượng này được làm ra trong ca làm việc nào."
+        "description": "Mã ca làm việc (Foreign Key). Cho biết sản lượng này được làm ra trong ca làm việc nào.",
+        "example_values": "1, 2, 4"
       }
     ],
     "relationships": [

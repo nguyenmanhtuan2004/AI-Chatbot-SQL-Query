@@ -3,35 +3,56 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from qdrant_client import QdrantClient
-from langchain_google_vertexai import VertexAIEmbeddings
 from core.config import settings
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+import requests
+import json
+import google.auth
+import google.auth.transport.requests
+
 # 1. Khởi tạo Qdrant Client
 qdrant_client = QdrantClient(url=settings.QDRANT_URL)
 
-# 2. Khởi tạo Mô hình Nhúng (Embedding)
-try:
-    embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/text-multilingual-embedding-002", 
-        task_type="RETRIEVAL_QUERY", # Chạy mượt mà, không bị báo lỗi nữa
-        project="ntb-text-to-sql",
-        location="asia-southeast1",
-        vertexai=True # Bắt buộc phải có để model biết bạn đang dùng GCP/key.json
-    )
-except Exception as e:
-    print(f"Cảnh báo: Không thể khởi tạo Vertex AI Embeddings. Lỗi: {e}")
-    embeddings = None
+# 2. Khởi tạo cấu hình Vertex AI REST API cho Embedding
+PROJECT_ID = getattr(settings, "GOOGLE_CLOUD_PROJECT", "ntb-text-to-sql")
+EMBEDDING_MODEL = "text-multilingual-embedding-002"
 
-def get_context_from_qdrant(query: str, top_k: int = 5) -> str:
+ENDPOINT = (
+    f"https://aiplatform.googleapis.com/v1/projects/{PROJECT_ID}"
+    f"/locations/global/publishers/google/models/{EMBEDDING_MODEL}:predict"
+)
+
+def get_auth_token():
+    credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    auth_req = google.auth.transport.requests.Request()
+    credentials.refresh(auth_req)
+    return credentials.token
+
+def get_embedding(text: str):
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {get_auth_token()}",
+    }
+    body = {
+        "instances": [{
+            "content": text,
+            "task_type": "RETRIEVAL_QUERY"
+        }],
+    }
+    resp = requests.post(ENDPOINT, headers=headers, data=json.dumps(body))
+    resp.raise_for_status()
+    data = resp.json()
+    return data["predictions"][0]["embeddings"]["values"]
+
+def get_context_from_qdrant(query: str, top_k: int = 3) -> str:
     """
     Tìm kiếm và định dạng Context từ Qdrant cho câu hỏi.
     Sử dụng trực tiếp Qdrant Client thay vì LangChain VectorStore để tự do đọc Payload custom.
     """
-    if not embeddings:
-        return "Lỗi: Chưa cấu hình xong Vertex AI Embeddings."
-
-    # Nhúng câu hỏi thành vector
-    query_vector = embeddings.embed_query(query)
+    # Nhúng câu hỏi thành vector bằng REST API
+    try:
+        query_vector = get_embedding(query)
+    except Exception as e:
+        return f"Lỗi: Không thể lấy vector embedding. Chi tiết: {e}"
 
     # Tìm kiếm trực tiếp trên Qdrant
     hits = qdrant_client.query_points(

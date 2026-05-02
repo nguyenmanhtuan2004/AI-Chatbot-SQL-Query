@@ -10,22 +10,26 @@
       {
         "name": "ShiftID",
         "type": "INT",
-        "description": "Mã định danh ca làm việc (Khóa chính)."
+        "description": "Mã định danh ca làm việc (Khóa chính).",
+        "example_values": "1, 2, 3"
       },
       {
         "name": "ShiftName",
         "type": "NVARCHAR(50)",
-        "description": "Tên gọi của ca làm việc (VD: Ca Sáng, Ca Chiều, Ca 1)."
+        "description": "Tên gọi của ca làm việc (VD: Ca Sáng, Ca Chiều, Ca 1).",
+        "example_values": "N'Ca Sáng', N'Ca Chiều', N'Ca Đêm'"
       },
       {
         "name": "StartTime",
         "type": "TIME",
-        "description": "Giờ bắt đầu của ca làm việc."
+        "description": "Giờ bắt đầu của ca làm việc.",
+        "example_values": "'06:00:00', '14:00:00', '22:00:00'"
       },
       {
         "name": "EndTime",
         "type": "TIME",
-        "description": "Giờ kết thúc của ca làm việc."
+        "description": "Giờ kết thúc của ca làm việc.",
+        "example_values": "'14:00:00', '22:00:00', '06:00:00'"
       },
       {
         "name": "CreatedAt",

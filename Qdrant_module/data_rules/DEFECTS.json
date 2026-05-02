@@ -10,7 +10,8 @@
       {
         "name": "ID",
         "type": "INT",
-        "description": "Mã bản ghi trạng thái lỗi (Khóa chính)."
+        "description": "Mã bản ghi trạng thái lỗi (Khóa chính).",
+        "example_values": "1, 2, 3"
       },
       {
         "name": "LineID",
@@ -21,32 +22,38 @@
       {
         "name": "ProductID",
         "type": "VARCHAR(50)",
-        "description": "Mã sản phẩm bị lỗi (Foreign Key). Dùng để thống kê số lượng lỗi theo từng mã hàng."
+        "description": "Mã sản phẩm bị lỗi (Foreign Key). Dùng để thống kê số lượng lỗi theo từng mã hàng.",
+        "example_values": "'TSHIRT_WHT', 'PANTS_KHK', 'SHIRT_BLU'"
       },
       {
         "name": "ProductivityID",
         "type": "INT",
-        "description": "Mã bản ghi năng suất tương ứng (Foreign Key). Tham chiếu tới lô hàng hoặc bản ghi năng suất đã tạo ra lỗi này, hỗ trợ tính tỉ lệ lỗi theo từng mẻ sản xuất."
+        "description": "Mã bản ghi năng suất tương ứng (Foreign Key). Tham chiếu tới lô hàng hoặc bản ghi năng suất đã tạo ra lỗi này, hỗ trợ tính tỉ lệ lỗi theo từng mẻ sản xuất.",
+        "example_values": "1, 2, 3"
       },
       {
         "name": "DefectTypeCode",
         "type": "VARCHAR(50)",
-        "description": "Mã loại lỗi gặp phải (Foreign Key). Dùng để phân loại lỗi cụ thể."
+        "description": "Mã loại lỗi gặp phải (Foreign Key). Dùng để phân loại lỗi cụ thể.",
+        "example_values": "'ERR_001', 'ERR_002', 'ERR_004'"
       },
       {
         "name": "ShiftID",
         "type": "INT",
-        "description": "Mã ca làm việc (Foreign Key). Cho biết lỗi được ghi nhận trong ca làm việc nào."
+        "description": "Mã ca làm việc (Foreign Key). Cho biết lỗi được ghi nhận trong ca làm việc nào.",
+        "example_values": "1, 2, 4"
       },
       {
         "name": "DefectCount",
         "type": "INT",
-        "description": "Số lượng lỗi bị bắt / phát hiện."
+        "description": "Số lượng lỗi bị bắt / phát hiện.",
+        "example_values": "15, 10, 20"
       },
       {
         "name": "RecordedAt",
         "type": "DATETIME",
-        "description": "Thời điểm ghi nhận lỗi. Dùng để thống kê biểu đồ xu hướng lỗi theo giờ hoặc ngày."
+        "description": "Thời điểm ghi nhận lỗi. Dùng để thống kê biểu đồ xu hướng lỗi theo giờ hoặc ngày.",
+        "example_values": "'2026-04-22T14:05:00', '2026-04-23T17:05:00'"
       },
       {
         "name": "CreatedAt",

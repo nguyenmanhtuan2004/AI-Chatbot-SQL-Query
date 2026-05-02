@@ -1,22 +1,30 @@
 import os
 import re
 import sys
+import requests
+import json
+import google.auth
+import google.auth.transport.requests
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import vertexai
-from vertexai.generative_models import GenerativeModel
 from core.config import settings
 
-# --- 1. KHỞI TẠO VERTEX AI ---
-# Lấy thông tin từ settings (bạn nên thêm các biến này vào .env)
+# --- 1. KHỞI TẠO CẤU HÌNH VERTEX AI BẰNG REST API CỦA GCP ($300 CREDIT) ---
 PROJECT_ID = getattr(settings, "GOOGLE_CLOUD_PROJECT", "ntb-text-to-sql")
-LOCATION = getattr(settings, "GOOGLE_CLOUD_LOCATION", "asia-southeast1")
+MODEL_ID="gemini-3-flash-preview"
 
-vertexai.init(project=PROJECT_ID, location=LOCATION)
 
-MODEL_NAME = "gemini-2.5-flash"  
-llm_model = GenerativeModel(MODEL_NAME)
+ENDPOINT = (
+    f"https://aiplatform.googleapis.com/v1/projects/{PROJECT_ID}"
+    f"/locations/global/publishers/google/models/{MODEL_ID}:generateContent"
+)
+
+def get_auth_token():
+    credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    auth_req = google.auth.transport.requests.Request()
+    credentials.refresh(auth_req)
+    return credentials.token
 
 
 # --- 2. GIỮ NGUYÊN CÁC HÀM CLEAN_SQL VÀ PROMPT ---
@@ -121,25 +129,42 @@ def generate_sql(query: str, context: str, previous_sql: str = None, error_msg: 
 
 # SQL RESPONSE:"""
     
-    response = llm_model.generate_content(full_prompt)
-    raw_sql = response.text
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {get_auth_token()}",
+    }
+
+    body = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": full_prompt}],
+            }
+        ]
+    }
+
+    resp = requests.post(ENDPOINT, headers=headers, data=json.dumps(body))
+    resp.raise_for_status()
+    data = resp.json()
+
+    text_parts = data["candidates"][0]["content"]["parts"]
+    raw_sql = "".join(p.get("text", "") for p in text_parts)
+    
     return clean_sql(raw_sql)
 
 
 # --- PHẦN TEST NHANH (giữ nguyên) ---
 if __name__ == "__main__":
+    from rag.qdrant_retriever import get_context_from_qdrant
+    
     print("🚀 Bắt đầu test nhanh SQL Generator (Vertex AI)...")
     
-    mock_context = """
-    Bảng PRODUCTIVITY:
-    - ID (int): Khóa chính
-    - LineID (string): Mã chuyền sản xuất
-    - Quantity (int): Sản lượng
-    - StartTime (datetime): Thời gian bắt đầu
-    """
-    
-    mock_query = "Hôm nay chuyền L01 làm được bao nhiêu sản phẩm?"
+    mock_query = "Hôm nay chuyền 1 làm được bao nhiêu sản phẩm?"
     print(f"📌 Câu hỏi: {mock_query}")
+    
+    print("⏳ Đang lấy context từ Qdrant...")
+    mock_context = get_context_from_qdrant(mock_query)
+    print(f"\n✅ === CONTEXT TỪ QDRANT ===\n{mock_context}\n===========================\n")
     
     try:
         print("⏳ Đang gọi Vertex AI...")

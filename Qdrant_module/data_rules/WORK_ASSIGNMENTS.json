@@ -10,12 +10,14 @@
       {
         "name": "AssignmentID",
         "type": "INT",
-        "description": "Mã phân công công việc (Khóa chính)."
+        "description": "Mã phân công công việc (Khóa chính).",
+        "example_values": "1, 2, 3"
       },
       {
         "name": "EmployeeID",
         "type": "INT",
-        "description": "Mã nhân sự (Foreign Key). Xác định nhân viên nào được phân công."
+        "description": "Mã nhân sự (Foreign Key). Xác định nhân viên nào được phân công.",
+        "example_values": "1, 2, 3"
       },
       {
         "name": "LineID",
@@ -26,12 +28,14 @@
       {
         "name": "ShiftID",
         "type": "INT",
-        "description": "Mã ca làm việc (Foreign Key). Xác định nhân viên làm việc trong ca nào (Sáng, chiều, tối...)."
+        "description": "Mã ca làm việc (Foreign Key). Xác định nhân viên làm việc trong ca nào (Sáng, chiều, tối...).",
+        "example_values": "1, 2, 4"
       },
       {
         "name": "WorkDate",
         "type": "DATE",
-        "description": "Ngày tháng năm thực hiện công việc được phân công."
+        "description": "Ngày tháng năm thực hiện công việc được phân công.",
+        "example_values": "'2026-04-22', '2026-04-23', '2026-04-24'"
       },
       {
         "name": "CreatedAt",

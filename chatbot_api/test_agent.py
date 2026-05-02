@@ -49,11 +49,12 @@ def run_test(query: str):
         print(json.dumps(data, indent=2, ensure_ascii=False, cls=CustomEncoder))
     else:
         print("Không có dữ liệu trả về.")
+        
+    print("\n[CÂU TRẢ LỜI TỰ NHIÊN]:")
+    print(result.get("answer") or "N/A")
+    
     print("\n" + "="*50)
 
 if __name__ == "__main__":
     # Test 1: Câu hỏi hợp lệ
-    run_test("Chuyền nào sắp trễ deadline")
-    
-    # Test 2: Câu hỏi không có trong nghiệp vụ (Để test nhánh Error)
-    # run_test("Giá vàng hôm nay bao nhiêu?")
+    run_test("Tiến độ của băng chuyền 1 đã hoàn thành được bao nhiêu phần trăm")

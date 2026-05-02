@@ -10,22 +10,26 @@
       {
         "name": "ProductID",
         "type": "VARCHAR(50)",
-        "description": "Mã sản phẩm hoặc mã hàng (Khóa chính). Dùng làm mã tham chiếu định danh trên toàn bộ hệ thống."
+        "description": "Mã sản phẩm hoặc mã hàng (Khóa chính). Dùng làm mã tham chiếu định danh trên toàn bộ hệ thống.",
+        "example_values": "'TSHIRT_WHT', 'PANTS_KHK', 'SHIRT_BLU'"
       },
       {
         "name": "ProductName",
         "type": "NVARCHAR(200)",
-        "description": "Tên định danh đầy đủ của sản phẩm."
+        "description": "Tên định danh đầy đủ của sản phẩm.",
+        "example_values": "N'Áo thun trắng', N'Quần Kaki', N'Áo sơ mi xanh'"
       },
       {
         "name": "UnitPrice",
         "type": "DECIMAL(18, 2)",
-        "description": "Đơn giá của 1 sản phẩm. Đây là trường cực kỳ quan trọng, dùng để nhân với số lượng sản xuất (Quantity) ở bảng PRODUCTIVITY để tính ra Doanh thu (Revenue)."
+        "description": "Đơn giá của 1 sản phẩm. Đây là trường cực kỳ quan trọng, dùng để nhân với số lượng sản xuất (Quantity) ở bảng PRODUCTIVITY để tính ra Doanh thu (Revenue).",
+        "example_values": "45000, 120000, 85000"
       },
       {
         "name": "Description",
         "type": "NVARCHAR(500)",
-        "description": "Mô tả chi tiết và các ghi chú thêm về sản phẩm."
+        "description": "Mô tả chi tiết và các ghi chú thêm về sản phẩm.",
+        "example_values": "N''"
       },
       {
         "name": "CreatedAt",

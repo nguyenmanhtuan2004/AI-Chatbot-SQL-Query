@@ -16,12 +16,14 @@
       {
         "name": "ManagerName",
         "type": "NVARCHAR(100)",
-        "description": "Tên người quản lý hoặc tổ trưởng chịu trách nhiệm của chuyền may này."
+        "description": "Tên người quản lý hoặc tổ trưởng chịu trách nhiệm của chuyền may này.",
+        "example_values": "N'Nguyễn Văn A', N'Trần Thị B', N'Lê Văn C'"
       },
       {
         "name": "Department",
         "type": "NVARCHAR(100)",
-        "description": "Phòng ban hoặc phân xưởng mà dây chuyền này trực thuộc."
+        "description": "Phòng ban hoặc phân xưởng mà dây chuyền này trực thuộc.",
+        "example_values": "N'Xưởng 1', N'Xưởng 2', N'Xưởng 3', N'Hoàn thiện', N'Đóng gói', N'Kho'"
       },
       {
         "name": "CreatedAt",

@@ -10,22 +10,26 @@
       {
         "name": "DefectTypeCode",
         "type": "VARCHAR(50)",
-        "description": "Mã loại lỗi (Khóa chính)."
+        "description": "Mã loại lỗi (Khóa chính).",
+        "example_values": "'ERR_001', 'ERR_002', 'ERR_003'"
       },
       {
         "name": "DefectName",
         "type": "NVARCHAR(200)",
-        "description": "Tên chi tiết của loại lỗi (Ví dụ: Lỗi sút chỉ, Lỗi sai form áo, Lỗi rách vải). Dùng để hiển thị lên báo cáo các lỗi vi phạm."
+        "description": "Tên chi tiết của loại lỗi (Ví dụ: Lỗi sút chỉ, Lỗi sai form áo, Lỗi rách vải). Dùng để hiển thị lên báo cáo các lỗi vi phạm.",
+        "example_values": "N'Đứt chỉ / Tuột chỉ', N'Lệch đường may', N'Rách vải / Thủng lỗ lớn'"
       },
       {
         "name": "Severity",
         "type": "NVARCHAR(50)",
-        "description": "Mức độ nghiêm trọng của lỗi (Ví dụ: Cao, Trung bình, Thấp). Dùng để phân loại và lọc các lỗi nghiêm trọng cần xử lý gấp."
+        "description": "Mức độ nghiêm trọng của lỗi (Ví dụ: Cao, Trung bình, Thấp). Dùng để phân loại và lọc các lỗi nghiêm trọng cần xử lý gấp.",
+        "example_values": "N'Thấp', N'Trung bình', N'Cao'"
       },
       {
         "name": "IsRepairable",
         "type": "BIT",
-        "description": "Cờ đánh dấu lỗi có thể sửa chữa tái chế được hay không. Cực kỳ quan trọng: Giá trị 1 (True) nghĩa là lỗi có thể sửa được; Giá trị 0 (False) nghĩa là lỗi không thể sửa, hàng bị xem là rớt hoặc phế phẩm (Scrap)."
+        "description": "Cờ đánh dấu lỗi có thể sửa chữa tái chế được hay không. Cực kỳ quan trọng: Giá trị 1 (True) nghĩa là lỗi có thể sửa được; Giá trị 0 (False) nghĩa là lỗi không thể sửa, hàng bị xem là rớt hoặc phế phẩm (Scrap).",
+        "example_values": "1, 0"
       },
       {
         "name": "CreatedAt",
