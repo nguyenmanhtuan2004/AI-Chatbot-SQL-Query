@@ -57,4 +57,4 @@ def run_test(query: str):
 
 if __name__ == "__main__":
     # Test 1: Câu hỏi hợp lệ
-    run_test("Tiến độ của băng chuyền 1 đã hoàn thành được bao nhiêu phần trăm")
+    run_test("Tỉ lệ lỗi của chuyền 1 và chuyền 2 trong Quý 2 là bao nhiêu")

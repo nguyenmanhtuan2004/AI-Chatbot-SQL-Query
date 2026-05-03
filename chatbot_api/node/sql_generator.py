@@ -155,7 +155,7 @@ def generate_sql(query: str, context: str, previous_sql: str = None, error_msg: 
 
 # --- PHẦN TEST NHANH (giữ nguyên) ---
 if __name__ == "__main__":
-    from rag.qdrant_retriever import get_context_from_qdrant
+    from node.qdrant_retriever import get_context_from_qdrant
     
     print("🚀 Bắt đầu test nhanh SQL Generator (Vertex AI)...")
     

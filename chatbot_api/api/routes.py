@@ -1,45 +1,12 @@
 from fastapi import APIRouter
-from pydantic import BaseModel
-from typing import Any, List, Optional
-from decimal import Decimal
-from datetime import date, datetime
 import json
 
-from rag.qdrant_retriever import get_context_from_qdrant
+from node.qdrant_retriever import get_context_from_qdrant
 from agent.graph import app as agent_app
+from api.schemas import ChatRequest, ChatResponse, QueryRequest
+from api.helpers import serialize_to_json
 
 router = APIRouter()
-
-
-# ---------- Schema ----------
-
-class QueryRequest(BaseModel):
-    query: str
-    top_k: int = 5
-
-class ChatRequest(BaseModel):
-    query: str
-
-class ChatResponse(BaseModel):
-    success: bool
-    query: str
-    answer: Optional[str] = None
-    generated_sql: Optional[str] = None
-    sql_result: Optional[List[Any]] = None
-    context: Optional[str] = None
-    error: Optional[str] = None
-
-
-# ---------- Helper ----------
-
-def _serialize(obj: Any) -> Any:
-    """Chuyển Decimal / date / datetime sang kiểu JSON-safe."""
-    if isinstance(obj, Decimal):
-        return float(obj)
-    if isinstance(obj, (date, datetime)):
-        return obj.isoformat()
-    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
-
 
 # ---------- Endpoints ----------
 
@@ -67,24 +34,23 @@ async def chat(req: ChatRequest):
         # "SQL trả về 0 hàng" ([] → []) với "SQL chưa chạy" (None → None)
         raw_data = result.get("sql_result")
         if raw_data is not None:
-            safe_data = json.loads(json.dumps(raw_data, default=_serialize))
+            safe_data = json.loads(json.dumps(raw_data, default=serialize_to_json))
         else:
             safe_data = None
 
         return ChatResponse(
-            success=result.get("sql_success", False),
-            query=req.query,
-            answer=result.get("answer"),
-            generated_sql=result.get("generated_sql"),
-            sql_result=safe_data,
-            context=result.get("context"),
-            error=result.get("error"),
+            status="success" if result.get("sql_success", False) else "error",
+            data={
+                "answer": result.get("answer") or "",
+                "sql_result": safe_data,
+                "sql_query": result.get("generated_sql")
+            },
+            error=result.get("error") if not result.get("sql_success", False) else None
         )
     except Exception as e:
         return ChatResponse(
-            success=False,
-            query=req.query,
-            error=str(e),
+            status="error",
+            error=str(e)
         )
 
 
