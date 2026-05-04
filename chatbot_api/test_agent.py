@@ -57,4 +57,4 @@ def run_test(query: str):
 
 if __name__ == "__main__":
     # Test 1: Câu hỏi hợp lệ
-    run_test("Tỉ lệ lỗi của chuyền 1 và chuyền 2 trong Quý 2 là bao nhiêu")
+    run_test("Tại sao Quý 2 lại có nhiều lỗi vậy, phần lớn nguyên nhân này nằm ở chuyền nào?")

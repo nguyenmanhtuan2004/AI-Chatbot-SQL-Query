@@ -7,7 +7,6 @@ class QueryRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     query: str
-    session_id: Optional[str] = None
 
 class ChatResponseData(BaseModel):
     answer: str

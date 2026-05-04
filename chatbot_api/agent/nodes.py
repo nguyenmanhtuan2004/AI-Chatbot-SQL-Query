@@ -31,6 +31,7 @@ def generate_sql_node(state: AgentState):
     
     try:
         if is_retry:
+            print(f"♻️ [RETRY {retry_count}] AI đang cố gắng tự sửa lỗi SQL...")
             sql = generate_sql(query, context, previous_sql, error_msg)
         else:
             sql = generate_sql(query, context)
@@ -48,6 +49,7 @@ def execute_sql_node(state: AgentState):
         data = execute_sql_query(sql)   # giả sử trả về list of rows
         return {"sql_result": data, "sql_success": True, "error": None, "retry_count": retry_count}
     except Exception as e:
+        print(f"❌ [LỖI THỰC THI SQL]: {str(e)}")
         return {"sql_success": False, "error": f"Lỗi thực thi SQL: {str(e)}", "retry_count": retry_count + 1}
 
 

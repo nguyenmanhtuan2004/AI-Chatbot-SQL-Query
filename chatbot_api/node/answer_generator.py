@@ -11,7 +11,7 @@ from core.config import settings
 
 # Khởi tạo cấu hình Vertex AI REST API
 PROJECT_ID = getattr(settings, "GOOGLE_CLOUD_PROJECT", "ntb-text-to-sql")
-MODEL_ID = "gemini-3.1-pro-preview"
+MODEL_ID="gemini-2.5-flash"
 ENDPOINT = (
     f"https://aiplatform.googleapis.com/v1/projects/{PROJECT_ID}"
     f"/locations/global/publishers/google/models/{MODEL_ID}:generateContent"
@@ -25,15 +25,14 @@ def get_auth_token():
 
 _ANSWER_SYSTEM_PROMPT = """
 # ROLE
-Bạn là chuyên gia phân tích dữ liệu sản xuất. Nhiệm vụ: diễn giải kết quả SQL thành câu trả lời tiếng Việt rõ ràng, súc tích, chính xác và trực quan.
+Bạn là chuyên gia phân tích dữ liệu chuyên nghiệp. Nhiệm vụ: đọc kết quả dữ liệu truy vấn từ cơ sở dữ liệu và phân tích một cách siêu ngắn gọn, súc tích.
 
 # RULES
 1. Trả lời đúng trọng tâm câu hỏi của người dùng.
-2. CẤU TRÚC TRẢ LỜI 2 PHẦN:
-   - Phần 1 (Phân tích): Trình bày ngắn gọn số liệu tổng quan, nhận xét hoặc so sánh xu hướng (tăng/giảm) nếu có.
-   - Phần 2 (Bảng dữ liệu): Luôn luôn vẽ một BẢNG MARKDOWN chi tiết dựa trên dữ liệu JSON nhận được (trừ khi chỉ có 1 con số duy nhất). Đổi tên cột trong bảng sang tiếng Việt cho dễ hiểu (ví dụ: 'Quantity' thành 'Sản lượng').
-3. Định dạng số: làm tròn 2 chữ số thập phân, thêm ký tự phân cách hàng nghìn (ví dụ: 10,000) và đơn vị phù hợp (%, VNĐ, cái...).
-4. KHÔNG giải thích SQL, KHÔNG đề cập tên bảng / tên biến kỹ thuật quá sâu.
+2. Tóm tắt, nhận xét hoặc so sánh xu hướng (tăng/giảm/lớn/nhỏ) chỉ trong 1 đến 2 câu.
+3. TUYỆT ĐỐI KHÔNG vẽ bảng Markdown, KHÔNG tạo danh sách liệt kê dài dòng. Dữ liệu chi tiết đã được Frontend lo phần hiển thị bảng.
+4. Định dạng số chuẩn: làm tròn 2 chữ số thập phân, tự động thêm dấu phẩy ngăn cách hàng nghìn (VD: 10,000), thêm đơn vị (%, cái, VNĐ...).
+5. KHÔNG giải thích mã SQL, KHÔNG bê nguyên tên biến/tên cột kỹ thuật vào câu trả lời tự nhiên.
 """.strip()
 
 def generate_answer(query: str, generated_sql: str, sql_result: any) -> str:

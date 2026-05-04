@@ -107,3 +107,36 @@ Bạn là một chuyên gia MS SQL Server cấp cao.
 - [x] Kết nối node vào `nodes.py` và tách biệt logic minh bạch.
 - [x] Kết nối node vào `graph.py`.
 - [ ] Chạy thử nghiệm với 5 câu hỏi thực tế.
+
+---
+
+## 6. Sơ đồ Luồng Agent (Agent Workflow)
+Dựa trên cấu hình LangGraph tại các file `graph.py`, `nodes.py`, và `edges.py`, dưới đây là sơ đồ luồng thực thi của Bot dưới dạng Text ASCII để tránh lỗi giới hạn plugin của VS Code:
+
+```text
+[Bắt đầu] 
+   │
+   ▼
+[1. Lấy dữ liệu từ Qdrant (retrieve_context)]
+   │
+   ├─► (Thất bại / Không có ngữ cảnh) ──► [5. Ghi log lỗi (handle_error)] ──► [Kết thúc]
+   │
+   ▼ (Thành công)
+[2. Sinh mã SQL (generate_sql)] ◄────────────────────────────────────────┐
+   │                                                                     │
+   ├─► (Sinh mã thất bại) ──────────────► [5. Ghi log lỗi] ──► [Kết thúc]│
+   │                                                                     │
+   ▼ (Sinh SQL thành công)                                               │
+[3. Chạy SQL query (execute_sql)]                                        │
+   │                                                                     │
+   ├─► (Lỗi thực thi SQL) ──► Kiểm tra [retry_count < 2]? ───────────────┘
+   │                           ├─► (Đã thử 2 lần) ──► [5. Ghi log lỗi] ──► [Kết thúc]
+   │                           └─► (Chưa tới 2 lần) ─► Tăng retry_count, quay lại bước 2.
+   │
+   ▼ (Thực thi thành công)
+[4. Diễn giải kết quả (generate_answer)]
+   │
+   ▼
+[Kết thúc]
+```
+
